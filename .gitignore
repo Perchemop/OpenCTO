@@ -1,0 +1,7 @@
+node_modules
+dist
+.output
+.vinxi
+engine/target
+*.log
+.DS_Store

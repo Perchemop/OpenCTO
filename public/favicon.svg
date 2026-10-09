@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="OpenCTO">
+  <rect width="32" height="32" rx="7" fill="#10120f"/>
+  <path fill="#d6f25c" d="M8 7h5.2v4.4H22v4.4h-8.8V25H8V7z"/>
+  <path fill="#d6f25c" d="M8 20.2h14.6l-2.6 4.8H8v-4.8z"/>
+</svg>
