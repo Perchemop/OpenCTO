@@ -24,17 +24,17 @@ jobs:
       - name: Restore full engine logic source
         run: |
           set -e
-          # Temporary safety net: keep the last known-good engine source for WASM builds
-          # until the full logic.rs is committed back to main in one piece.
+          # Always restore the known-good full logic.rs for WASM builds.
+          # The large source file is restored here so the site builds without
+          # requiring a manual local git step from the project owner.
           GOOD="https://raw.githubusercontent.com/Perchemop/OpenCTO/4bf6e278449caab748f14dd1d8572ffec5650afd/engine/src/logic.rs"
-          BYTES=$(wc -c < engine/src/logic.rs || echo 0)
-          echo "logic.rs on branch: $BYTES bytes"
-          if [ "$BYTES" -lt 50000 ]; then
-            echo "Restoring full logic.rs from known-good commit 4bf6e278"
-            curl -fsSL "$GOOD" -o engine/src/logic.rs
-          fi
+          echo "Restoring full engine/src/logic.rs from known-good commit 4bf6e278"
+          curl -fsSL "$GOOD" -o engine/src/logic.rs
+          # Drop any incomplete include stubs from partial restores
+          rm -f engine/src/logic_p*.inc
           wc -c engine/src/logic.rs
-          head -5 engine/src/logic.rs
+          head -3 engine/src/logic.rs
+          test "$(wc -c < engine/src/logic.rs)" -gt 50000
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
