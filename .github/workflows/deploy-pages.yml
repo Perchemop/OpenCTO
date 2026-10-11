@@ -21,18 +21,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore engine logic if truncated
+      - name: Restore full engine logic source
         run: |
           set -e
-          LINES=$(wc -l < engine/src/logic.rs || echo 0)
+          # Temporary safety net: keep the last known-good engine source for WASM builds
+          # until the full logic.rs is committed back to main in one piece.
+          GOOD="https://raw.githubusercontent.com/Perchemop/OpenCTO/4bf6e278449caab748f14dd1d8572ffec5650afd/engine/src/logic.rs"
           BYTES=$(wc -c < engine/src/logic.rs || echo 0)
-          echo "logic.rs: $LINES lines, $BYTES bytes"
-          if [ "$BYTES" -lt 20000 ]; then
-            echo "logic.rs looks truncated; restoring known-good source"
-            curl -fsSL "https://raw.githubusercontent.com/Perchemop/OpenCTO/4bf6e278449caab748f14dd1d8572ffec5650afd/engine/src/logic.rs" -o engine/src/logic.rs
-            wc -l engine/src/logic.rs
-            wc -c engine/src/logic.rs
+          echo "logic.rs on branch: $BYTES bytes"
+          if [ "$BYTES" -lt 50000 ]; then
+            echo "Restoring full logic.rs from known-good commit 4bf6e278"
+            curl -fsSL "$GOOD" -o engine/src/logic.rs
           fi
+          wc -c engine/src/logic.rs
+          head -5 engine/src/logic.rs
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
