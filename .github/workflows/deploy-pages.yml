@@ -21,6 +21,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build WASM engine
+        run: |
+          set -e
+          cargo build --manifest-path engine/Cargo.toml --target wasm32-unknown-unknown --release --lib
+          mkdir -p public/engine
+          cp engine/target/wasm32-unknown-unknown/release/opencto.wasm public/engine/opencto.wasm
+          ls -la public/engine/opencto.wasm
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -38,8 +51,6 @@ jobs:
       - name: Prepare static output
         run: |
           set -e
-          # TanStack Start SPA mode puts the browser assets in dist/client
-          # (including _shell.html). Prefer that path; fall back to others.
           if [ -d "dist/client" ]; then
             OUT="dist/client"
           elif [ -d ".output/public" ]; then
@@ -58,7 +69,6 @@ jobs:
           mkdir -p _site
           cp -a "$OUT"/. _site/
 
-          # SPA shell → index.html + 404.html so client routing works on Pages
           if [ -f _site/_shell.html ]; then
             cp _site/_shell.html _site/index.html
             cp _site/_shell.html _site/404.html
@@ -70,15 +80,13 @@ jobs:
             exit 1
           fi
 
-          # Ensure the WASM engine is present at the expected path
-          if [ ! -f _site/engine/opencto.wasm ]; then
-            mkdir -p _site/engine
-            if [ -f public/engine/opencto.wasm ]; then
-              cp public/engine/opencto.wasm _site/engine/opencto.wasm
-            elif [ -f dist/client/engine/opencto.wasm ]; then
-              cp dist/client/engine/opencto.wasm _site/engine/opencto.wasm
-            fi
+          mkdir -p _site/engine
+          if [ -f public/engine/opencto.wasm ]; then
+            cp public/engine/opencto.wasm _site/engine/opencto.wasm
+          elif [ -f dist/client/engine/opencto.wasm ]; then
+            cp dist/client/engine/opencto.wasm _site/engine/opencto.wasm
           fi
+          test -f _site/engine/opencto.wasm && echo "wasm: OK ($(wc -c < _site/engine/opencto.wasm) bytes)" || (echo "wasm MISSING" && exit 1)
 
           echo "--- _site contents ---"
           ls -la _site | head -40
