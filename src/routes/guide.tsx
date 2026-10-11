@@ -17,19 +17,31 @@ function Guide() {
       </header>
       <article className="mx-auto w-full max-w-3xl px-4 pb-16">
         <p className="text-xs tracking-widest text-accent uppercase">Guide</p>
-        <h1 className="mt-3 font-serif text-5xl font-medium tracking-tight">Run it yourself</h1>
+        <h1 className="mt-3 font-serif text-5xl font-medium tracking-tight">Open and use</h1>
         <p className="mt-4 text-base leading-relaxed text-muted">
           OpenCTO is an independent, MIT-licensed reimplementation of the public cto.new workflow: a lead,
           a hired team, tasks, a plan, a preview, and an approval before anything is called published. It is
-          not affiliated with cto.new or Engine Labs. The desk you are using runs the Rust engine as
-          WebAssembly. The same crate is a command-line tool with no account and no network.
+          not affiliated with cto.new or Engine Labs.
         </p>
+        <p className="mt-3 text-base leading-relaxed text-muted">
+          There is no account and no API key. The desk runs a Rust engine as WebAssembly in this browser.
+          Your businesses are stored only on this device. Download a zip when you want a copy.
+        </p>
+
+        <h2 className="mt-10 font-serif text-3xl">How to start</h2>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted">
+          <li>Open the home page and type what you want built — or tap Surprise me.</li>
+          <li>Pick a desk type and a planning profile (styles only; nothing is called over the network).</li>
+          <li>Start the team. Watch the plan, tasks, and site preview fill in.</li>
+          <li>Chat with the lead, hire or fire, approve or reject when the gate appears.</li>
+          <li>Download the workspace zip from Headquarters if you want the files offline.</li>
+        </ol>
 
         <h2 className="mt-10 font-serif text-3xl">Several businesses</h2>
         <p className="mt-3 text-sm leading-relaxed text-muted">
           Starting another brief keeps the previous desk. Switch from the menu under the name, or from the search
-          button in the header. Clearing a desk in settings removes only that one. Downloads are a zip of the
-          files written so far — still on your machine, still not a pull request.
+          button in the header. Clearing a desk in settings removes only that one. Everything stays in this
+          browser until you clear site data.
         </p>
 
         <h2 className="mt-10 font-serif text-3xl">What a run does</h2>
@@ -44,8 +56,8 @@ function Guide() {
         <p className="mt-3 text-sm leading-relaxed text-muted">
           Local, alloy, Qwen, Devstral, DeepSeek, and Kimi are planning styles inside the crate. They do not
           call those labs. Alloy means two passes in one thread: a structured draft, then a looser rewrite,
-          merged. When you self-host, point those profiles at open weights yourself — Ollama, llama.cpp, or
-          any server that speaks an OpenAI-compatible API. The browser build never needs a key.
+          merged. When you self-host the CLI, you can point those profiles at open weights yourself. The
+          browser build never needs a key.
         </p>
 
         <h2 className="mt-10 font-serif text-3xl">The CLI</h2>
