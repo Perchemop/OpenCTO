@@ -182,40 +182,46 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
       <header className="border-b border-line">
-        <div className="flex items-center gap-3 px-3 py-3 sm:px-4">
-          <Link to="/" className="text-accent" aria-label="OpenCTO home">
+        <div className="flex items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-3">
+          <Link to="/" className="shrink-0 text-accent" aria-label="OpenCTO home">
             <Mark className="size-6" />
           </Link>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-xl leading-none">{snapshot.business.name}</p>
+            <p className="truncate font-serif text-lg leading-none sm:text-xl">{snapshot.business.name}</p>
             <p className="truncate text-xs text-muted">{snapshot.business.tagline}</p>
           </div>
-          <span className="hidden rounded-full border border-line px-3 py-1 text-xs text-muted sm:inline">
+          <span className="hidden rounded-full border border-line px-3 py-1 text-xs text-muted md:inline">
             {snapshot.business.model}
           </span>
           <button
             type="button"
             onClick={() => setCommandsOpen(true)}
-            className="inline-flex size-11 items-center justify-center rounded-full border border-line"
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-line sm:size-11"
             aria-label="Commands"
           >
             <Search className="size-4" aria-hidden />
           </button>
-          <Link to="/" className="inline-flex min-h-11 items-center rounded-full border border-line px-3 text-sm">
-            New
+          <Link
+            to="/"
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-line text-sm sm:min-h-11 sm:w-auto sm:px-3"
+            aria-label="Start another business"
+          >
+            <span className="sm:hidden">+</span>
+            <span className="hidden sm:inline">New</span>
           </Link>
           <button
             type="button"
             disabled={busy}
             onClick={() => void setRunStatus(paused ? "resume" : "pause")}
-            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
+            className="inline-flex size-10 shrink-0 items-center justify-center gap-2 rounded-full border border-line text-sm sm:min-h-11 sm:w-auto sm:px-3"
+            aria-label={paused ? "Resume" : "Pause"}
           >
             {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
-            {paused ? "Resume" : "Pause"}
+            <span className="hidden sm:inline">{paused ? "Resume" : "Pause"}</span>
           </button>
         </div>
         {desks.length > 1 ? (
-          <div className="px-3 pb-3 sm:px-4">
+          <div className="px-2 pb-2 sm:px-4 sm:pb-3">
             <label className="sr-only" htmlFor="business-switch">
               Business
             </label>
@@ -223,7 +229,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
               id="business-switch"
               value={activeId ?? ""}
               onChange={(event) => switchDesk(event.target.value)}
-              className="min-h-11 max-w-full rounded-full border border-line bg-bg px-3 text-sm text-fg"
+              className="min-h-10 max-w-full rounded-full border border-line bg-bg px-3 text-sm text-fg sm:min-h-11"
             >
               {desks.map((desk) => (
                 <option key={desk.id} value={desk.id}>
@@ -238,21 +244,30 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
         </div>
       </header>
 
-      <nav className="flex gap-2 overflow-x-auto border-b border-line px-3 py-2" aria-label="Headquarters">
+      <nav
+        className="flex gap-1 overflow-x-auto border-b border-line px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2"
+        aria-label="Headquarters"
+      >
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = section === item.id;
+          const badge =
+            item.id === "tasks" && doing > 0
+              ? doing
+              : item.id === "inbox" && pending.length > 0
+                ? pending.length
+                : null;
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => setSection(item.id)}
-              className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-3 text-sm ${active ? "bg-accent text-ink" : "text-muted"}`}
+              className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm sm:min-h-11 sm:gap-2 sm:px-3 ${active ? "bg-accent text-ink" : "text-muted"}`}
+              aria-label={item.label}
             >
               <Icon className="size-4" aria-hidden />
-              {item.label}
-              {item.id === "tasks" && doing > 0 ? <span className="tabular-nums">{doing}</span> : null}
-              {item.id === "inbox" && pending.length > 0 ? <span className="tabular-nums">{pending.length}</span> : null}
+              <span className="hidden xs:inline sm:inline">{item.label}</span>
+              {badge !== null ? <span className="tabular-nums text-xs">{badge}</span> : null}
             </button>
           );
         })}
@@ -260,7 +275,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
 
       {pending.length > 0 ? (
         <div className="flex flex-col gap-2 border-b border-line bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium">{pending[0].title}</p>
             <p className="text-sm text-muted">{pending[0].detail}</p>
           </div>
@@ -294,7 +309,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
                 type="button"
                 disabled={busy}
                 onClick={() => setRejectFor(pending[0].id)}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full border border-line px-3 text-sm sm:flex-none"
               >
                 <X className="size-4" aria-hidden />
                 Reject
@@ -304,7 +319,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
               type="button"
               disabled={busy}
               onClick={() => void decide(true, pending[0].id)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-3 text-sm font-medium text-ink"
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent px-3 text-sm font-medium text-ink sm:flex-none"
             >
               <Check className="size-4" aria-hidden />
               Approve
@@ -330,18 +345,18 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
       </div>
 
       {step < snapshot.log.length ? (
-        <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2 text-sm">
-          <p className="truncate text-muted">
-            {playing ? "The team is working" : "Playback is paused"} · {step}/{snapshot.log.length}
+        <div className="flex items-center justify-between gap-2 border-t border-line px-2 py-2 text-sm sm:gap-3 sm:px-3">
+          <p className="min-w-0 truncate text-muted">
+            {playing ? "Working" : "Paused"} · {step}/{snapshot.log.length}
           </p>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setPlaying(!playing)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3">
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={() => setPlaying(!playing)} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line px-3 sm:min-h-11">
               {playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
-              {playing ? "Hold" : "Play"}
+              <span className="hidden sm:inline">{playing ? "Hold" : "Play"}</span>
             </button>
-            <button type="button" onClick={finishPlayback} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3">
+            <button type="button" onClick={finishPlayback} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line px-3 sm:min-h-11">
               <FastForward className="size-4" aria-hidden />
-              Skip
+              <span className="hidden sm:inline">Skip</span>
             </button>
           </div>
         </div>
