@@ -28,8 +28,6 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        # package-lock.json is slightly out of sync with package.json (ajv etc.).
-        # Use npm install so CI can still succeed; regenerate the lock locally later.
         run: npm install --no-audit --no-fund
 
       - name: Build (SPA for GitHub Pages)
@@ -40,9 +38,11 @@ jobs:
       - name: Prepare static output
         run: |
           set -e
-          # TanStack Start + SPA mode typically emits client assets here.
-          # Fall back through common locations so the workflow stays resilient.
-          if [ -d ".output/public" ]; then
+          # TanStack Start SPA mode puts the browser assets in dist/client
+          # (including _shell.html). Prefer that path; fall back to others.
+          if [ -d "dist/client" ]; then
+            OUT="dist/client"
+          elif [ -d ".output/public" ]; then
             OUT=".output/public"
           elif [ -d "dist" ]; then
             OUT="dist"
@@ -50,28 +50,39 @@ jobs:
             OUT=".vercel/output/static"
           else
             echo "Could not find static build output"
-            find . -maxdepth 3 -type d \( -name public -o -name dist -o -name static \) 2>/dev/null || true
+            find . -maxdepth 4 -type d \( -name client -o -name public -o -name dist -o -name static \) 2>/dev/null || true
             ls -la
             exit 1
           fi
           echo "Using output directory: $OUT"
           mkdir -p _site
           cp -a "$OUT"/. _site/
-          # GitHub Pages SPA fallback: any 404 serves the shell so client routing works.
-          if [ -f _site/index.html ]; then
-            cp _site/index.html _site/404.html
-          elif [ -f _site/_shell.html ]; then
+
+          # SPA shell → index.html + 404.html so client routing works on Pages
+          if [ -f _site/_shell.html ]; then
             cp _site/_shell.html _site/index.html
             cp _site/_shell.html _site/404.html
+          elif [ -f _site/index.html ]; then
+            cp _site/index.html _site/404.html
+          else
+            echo "No index.html or _shell.html found in $OUT"
+            ls -la _site
+            exit 1
           fi
-          # Ensure the WASM engine is present
+
+          # Ensure the WASM engine is present at the expected path
           if [ ! -f _site/engine/opencto.wasm ]; then
             mkdir -p _site/engine
             if [ -f public/engine/opencto.wasm ]; then
               cp public/engine/opencto.wasm _site/engine/opencto.wasm
+            elif [ -f dist/client/engine/opencto.wasm ]; then
+              cp dist/client/engine/opencto.wasm _site/engine/opencto.wasm
             fi
           fi
+
+          echo "--- _site contents ---"
           ls -la _site | head -40
+          test -f _site/index.html && echo "index.html: OK" || echo "index.html: MISSING"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
