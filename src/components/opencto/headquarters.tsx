@@ -1,1 +1,372 @@
-PLACEHOLDER
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  Activity,
+  AppWindow,
+  ArrowUp,
+  Check,
+  Columns3,
+  Download,
+  FastForward,
+  FolderOpen,
+  Inbox,
+  MessageSquare,
+  Pause,
+  Play,
+  ScrollText,
+  Search,
+  Settings,
+  Users,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CommandPalette, type Command } from "@/components/opencto/commands";
+import { Mark } from "@/components/opencto/mark";
+import { suggestions } from "@/lib/opencto/suggest";
+import { useOpenCto } from "@/lib/opencto/store";
+import { columnAt, ownerName, TEAMS, type Employee, type Section, type Snapshot } from "@/lib/opencto/types";
+import { downloadBytes, downloadText, zipStore } from "@/lib/opencto/zip";
+import { Lead, Team, LocalTip } from "@/components/opencto/hq-lead-team";
+import { Site, Plan, Tasks } from "@/components/opencto/hq-site-tasks";
+import { Files, InboxView, Runway, SettingsView } from "@/components/opencto/hq-files-settings";
+
+const NAV: { id: Section; label: string; icon: typeof MessageSquare }[] = [
+  { id: "lead", label: "Lead", icon: MessageSquare },
+  { id: "team", label: "Team", icon: Users },
+  { id: "site", label: "Site", icon: AppWindow },
+  { id: "plan", label: "Plan", icon: ScrollText },
+  { id: "tasks", label: "Tasks", icon: Columns3 },
+  { id: "files", label: "Files", icon: FolderOpen },
+  { id: "inbox", label: "Inbox", icon: Inbox },
+  { id: "runway", label: "Runway", icon: Activity },
+  { id: "settings", label: "Settings", icon: Settings },
+];
+
+export function Headquarters() {
+  const [hydrated, setHydrated] = useState(false);
+  const snapshot = useOpenCto((s) => s.snapshot);
+  usePlayback();
+
+  useEffect(() => {
+    void useOpenCto.persist.rehydrate();
+    setHydrated(true);
+  }, []);
+
+  if (!hydrated) {
+    return (
+      <main className="grid min-h-dvh place-items-center bg-bg text-muted">
+        <p>Opening the desk…</p>
+      </main>
+    );
+  }
+
+  if (!snapshot) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-4 bg-bg px-6 text-fg">
+        <Mark className="size-8 text-accent" />
+        <h1 className="font-serif text-4xl font-medium">No business on the desk</h1>
+        <p className="text-muted">Start a team from the front door. The run stays in this browser.</p>
+        <Link to="/" className="inline-flex min-h-11 w-fit items-center rounded-full bg-accent px-4 text-sm font-medium text-ink">
+          Start a team
+        </Link>
+      </main>
+    );
+  }
+
+  return <Desk snapshot={snapshot} />;
+}
+
+function usePlayback() {
+  const playing = useOpenCto((s) => s.playing);
+  const step = useOpenCto((s) => s.step);
+  const len = useOpenCto((s) => s.snapshot?.log.length ?? 0);
+  const advance = useOpenCto((s) => s.advance);
+  const finishPlayback = useOpenCto((s) => s.finishPlayback);
+
+  useEffect(() => {
+    if (!playing) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || step >= len) {
+      finishPlayback();
+      return;
+    }
+    const timer = window.setTimeout(advance, 680);
+    return () => window.clearTimeout(timer);
+  }, [playing, step, len, advance, finishPlayback]);
+}
+
+function Desk({ snapshot }: { snapshot: Snapshot }) {
+  const navigate = useNavigate();
+  const section = useOpenCto((s) => s.section);
+  const setSection = useOpenCto((s) => s.setSection);
+  const step = useOpenCto((s) => s.step);
+  const playing = useOpenCto((s) => s.playing);
+  const setPlaying = useOpenCto((s) => s.setPlaying);
+  const finishPlayback = useOpenCto((s) => s.finishPlayback);
+  const setRunStatus = useOpenCto((s) => s.setRunStatus);
+  const busy = useOpenCto((s) => s.busy);
+  const error = useOpenCto((s) => s.error);
+  const decide = useOpenCto((s) => s.decide);
+  const desks = useOpenCto((s) => s.desks);
+  const activeId = useOpenCto((s) => s.activeId);
+  const switchDesk = useOpenCto((s) => s.switchDesk);
+  const paused = snapshot.business.status === "paused";
+  const pending = snapshot.approvals.filter((item) => item.status === "pending" && item.reveal_step <= step);
+  const progress = snapshot.log.length === 0 ? 100 : Math.round((step / snapshot.log.length) * 100);
+  const doing = snapshot.tasks.filter((task) => columnAt(task, step) === "doing").length;
+  const [commandsOpen, setCommandsOpen] = useState(false);
+  const [rejectFor, setRejectFor] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandsOpen((open) => !open);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  function downloadWorkspace() {
+    const files = snapshot.files.filter((file) => file.reveal_step <= step && file.content);
+    if (files.length === 0) return;
+    const slug =
+      snapshot.business.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || "opencto";
+    downloadBytes(
+      zipStore(files.map((file) => ({ path: file.path, content: file.content }))),
+      `${slug}-workspace.zip`,
+      "application/zip",
+    );
+  }
+
+  const commands: Command[] = [
+    ...NAV.map((item) => ({
+      id: `go-${item.id}`,
+      label: `Open ${item.label.toLowerCase()}`,
+      hint: "View",
+      run: () => setSection(item.id),
+    })),
+    {
+      id: "status",
+      label: paused ? "Resume the business" : "Pause the business",
+      run: () => void setRunStatus(paused ? "resume" : "pause"),
+    },
+    {
+      id: "play",
+      label: playing ? "Hold playback" : "Play the work log",
+      run: () => setPlaying(!playing),
+    },
+    { id: "skip", label: "Skip playback", run: finishPlayback },
+    ...(pending[0]
+      ? [
+          {
+            id: "approve",
+            label: "Approve the pending gate",
+            run: () => void decide(true, pending[0].id),
+          },
+        ]
+      : []),
+    { id: "zip", label: "Download the workspace", hint: "ZIP", run: downloadWorkspace },
+    {
+      id: "new",
+      label: "Start another business",
+      hint: "Keeps this one",
+      run: () => void navigate({ to: "/" }),
+    },
+    ...desks
+      .filter((desk) => desk.id !== activeId)
+      .map((desk) => ({
+        id: `desk-${desk.id}`,
+        label: `Switch to ${desk.snapshot.business.name}`,
+        hint: "Business",
+        run: () => switchDesk(desk.id),
+      })),
+  ];
+
+  return (
+    <div className="flex h-dvh flex-col bg-bg text-fg">
+      <header className="border-b border-line">
+        <div className="flex items-center gap-3 px-3 py-3 sm:px-4">
+          <Link to="/" className="text-accent" aria-label="OpenCTO home">
+            <Mark className="size-6" />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-serif text-xl leading-none">{snapshot.business.name}</p>
+            <p className="truncate text-xs text-muted">{snapshot.business.tagline}</p>
+          </div>
+          <span className="hidden rounded-full border border-line px-3 py-1 text-xs text-muted sm:inline">
+            {snapshot.business.model}
+          </span>
+          <button
+            type="button"
+            onClick={() => setCommandsOpen(true)}
+            className="inline-flex size-11 items-center justify-center rounded-full border border-line"
+            aria-label="Commands"
+          >
+            <Search className="size-4" aria-hidden />
+          </button>
+          <Link to="/" className="inline-flex min-h-11 items-center rounded-full border border-line px-3 text-sm">
+            New
+          </Link>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void setRunStatus(paused ? "resume" : "pause")}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
+          >
+            {paused ? <Play className="size-4" aria-hidden /> : <Pause className="size-4" aria-hidden />}
+            {paused ? "Resume" : "Pause"}
+          </button>
+        </div>
+        {desks.length > 1 ? (
+          <div className="px-3 pb-3 sm:px-4">
+            <label className="sr-only" htmlFor="business-switch">
+              Business
+            </label>
+            <select
+              id="business-switch"
+              value={activeId ?? ""}
+              onChange={(event) => switchDesk(event.target.value)}
+              className="min-h-11 max-w-full rounded-full border border-line bg-bg px-3 text-sm text-fg"
+            >
+              {desks.map((desk) => (
+                <option key={desk.id} value={desk.id}>
+                  {desk.snapshot.business.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        <div className="h-1 bg-line" aria-hidden>
+          <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+        </div>
+      </header>
+
+      <nav className="flex gap-2 overflow-x-auto border-b border-line px-3 py-2" aria-label="Headquarters">
+        {NAV.map((item) => {
+          const Icon = item.icon;
+          const active = section === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setSection(item.id)}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-3 text-sm ${active ? "bg-accent text-ink" : "text-muted"}`}
+            >
+              <Icon className="size-4" aria-hidden />
+              {item.label}
+              {item.id === "tasks" && doing > 0 ? <span className="tabular-nums">{doing}</span> : null}
+              {item.id === "inbox" && pending.length > 0 ? <span className="tabular-nums">{pending.length}</span> : null}
+            </button>
+          );
+        })}
+      </nav>
+
+      {pending.length > 0 ? (
+        <div className="flex flex-col gap-2 border-b border-line bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+          <div>
+            <p className="text-sm font-medium">{pending[0].title}</p>
+            <p className="text-sm text-muted">{pending[0].detail}</p>
+          </div>
+          <div className="flex gap-2">
+            {rejectFor === pending[0].id ? (
+              <form
+                className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void decide(false, pending[0].id, reason);
+                  setRejectFor(null);
+                  setReason("");
+                }}
+              >
+                <label className="sr-only" htmlFor="reject-reason">
+                  Why hold this draft
+                </label>
+                <input
+                  id="reject-reason"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  placeholder="Why hold it? Optional."
+                  className="min-h-11 rounded-full border border-line bg-bg px-3 text-sm text-fg outline-none sm:w-64"
+                />
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-3 text-sm"
+                >
+                  Hold the draft
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setRejectFor(pending[0].id)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
+              >
+                <X className="size-4" aria-hidden />
+                Reject
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void decide(true, pending[0].id)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-3 text-sm font-medium text-ink"
+            >
+              <Check className="size-4" aria-hidden />
+              Approve
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {error ? <p className="border-b border-line px-4 py-2 text-sm text-accent">{error}</p> : null}
+
+      <LocalTip />
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {section === "lead" ? <Lead snapshot={snapshot} step={step} /> : null}
+        {section === "team" ? <Team snapshot={snapshot} step={step} /> : null}
+        {section === "site" ? <Site snapshot={snapshot} step={step} /> : null}
+        {section === "plan" ? <Plan snapshot={snapshot} /> : null}
+        {section === "tasks" ? <Tasks snapshot={snapshot} step={step} /> : null}
+        {section === "files" ? <Files snapshot={snapshot} step={step} /> : null}
+        {section === "inbox" ? <InboxView snapshot={snapshot} step={step} /> : null}
+        {section === "runway" ? <Runway snapshot={snapshot} step={step} /> : null}
+        {section === "settings" ? <SettingsView snapshot={snapshot} /> : null}
+      </div>
+
+      {step < snapshot.log.length ? (
+        <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2 text-sm">
+          <p className="truncate text-muted">
+            {playing ? "The team is working" : "Playback is paused"} · {step}/{snapshot.log.length}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setPlaying(!playing)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3"
+            >
+              {playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
+              {playing ? "Hold" : "Play"}
+            </button>
+            <button
+              type="button"
+              onClick={finishPlayback}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3"
+            >
+              <FastForward className="size-4" aria-hidden />
+              Skip
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <CommandPalette open={commandsOpen} onClose={() => setCommandsOpen(false)} commands={commands} />
+    </div>
+  );
+}
