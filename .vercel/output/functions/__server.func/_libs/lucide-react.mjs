@@ -167,6 +167,29 @@ var Columns3 = createLucideIcon("columns-3", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
+var Download = createLucideIcon("download", [
+	["path", {
+		d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
+		key: "ih7n3h"
+	}],
+	["polyline", {
+		points: "7 10 12 15 17 10",
+		key: "2ggqvy"
+	}],
+	["line", {
+		x1: "12",
+		x2: "12",
+		y1: "15",
+		y2: "3",
+		key: "1vk2je"
+	}]
+]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
 var FastForward = createLucideIcon("fast-forward", [["polygon", {
 	points: "13 19 22 12 13 5 13 19",
 	key: "587y9g"
@@ -262,6 +285,21 @@ var ScrollText = createLucideIcon("scroll-text", [
 		key: "1ph1d7"
 	}]
 ]);
+/**
+* @license lucide-react v0.510.0 - ISC
+*
+* This source code is licensed under the ISC license.
+* See the LICENSE file in the root directory of this source tree.
+*/
+var Search = createLucideIcon("search", [["path", {
+	d: "m21 21-4.34-4.34",
+	key: "14j7rj"
+}], ["circle", {
+	cx: "11",
+	cy: "11",
+	r: "8",
+	key: "4ej97u"
+}]]);
 /**
 * @license lucide-react v0.510.0 - ISC
 *
@@ -365,4 +403,4 @@ var X = createLucideIcon("x", [["path", {
 	key: "d8bk6v"
 }]]);
 //#endregion
-export { Activity as _, Settings as a, Pause as c, FolderOpen as d, FastForward as f, AppWindow as g, ArrowUp as h, Shuffle as i, MessageSquare as l, Check as m, Users as n, ScrollText as o, Columns3 as p, TriangleAlert as r, Play as s, X as t, Inbox as u };
+export { ArrowUp as _, Settings as a, Play as c, Inbox as d, FolderOpen as f, Check as g, Columns3 as h, Shuffle as i, Pause as l, Download as m, Users as n, Search as o, FastForward as p, TriangleAlert as r, ScrollText as s, X as t, MessageSquare as u, AppWindow as v, Activity as y };

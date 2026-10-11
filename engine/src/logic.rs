@@ -1,6 +1,6 @@
 use crate::types::*;
 
-pub const VERSION: &str = "0.1.0";
+pub const VERSION: &str = "0.2.0";
 
 pub fn handle(req: Request) -> Response {
     let op = req.op.trim().to_ascii_lowercase();
@@ -139,10 +139,10 @@ fn chat(req: &Request) -> Response {
         return ready(snap, -1);
     }
     if lower.contains("approve") || lower == "yes" || lower == "ship it" || lower == "lgtm" {
-        return settle_snap(snap, from, true, "");
+        return settle_snap(snap, from, true, "", "");
     }
     if lower.contains("reject") || lower == "no" || lower.starts_with("don't publish") {
-        return settle_snap(snap, from, false, "");
+        return settle_snap(snap, from, false, "", &reason_from(message));
     }
     if let Some(team) = hire_target(&lower) {
         return hire_into(snap, from, team);
@@ -210,10 +210,10 @@ fn settle(req: &Request, approve: bool) -> Response {
         return fail("Nothing to review yet.".into());
     };
     let from = snap.log.len() as u32;
-    settle_snap(snap, from, approve, &req.approval_id)
+    settle_snap(snap, from, approve, &req.approval_id, &req.message)
 }
 
-fn settle_snap(mut snap: Snapshot, from: u32, approve: bool, approval_id: &str) -> Response {
+fn settle_snap(mut snap: Snapshot, from: u32, approve: bool, approval_id: &str, reason: &str) -> Response {
     let idx = snap.approvals.iter().position(|a| {
         a.status == "pending" && (approval_id.is_empty() || a.id == approval_id)
     });
@@ -237,8 +237,22 @@ fn settle_snap(mut snap: Snapshot, from: u32, approve: bool, approval_id: &str) 
     } else {
         snap.approvals[idx].status = "rejected".into();
         snap.published = false;
-        let step = note_event(&mut snap, "Ada Voss", "review", "You rejected the pending approval. The draft stays unpublished.", "");
-        say(&mut snap, step, "Held. Tell me what to change and I will cut a new draft.");
+        let why = clip(reason.trim(), 240);
+        let noted = if why.is_empty() {
+            "You rejected the pending approval. The draft stays unpublished.".to_string()
+        } else {
+            format!("You rejected the pending approval. Reason: {why}")
+        };
+        let step = note_event(&mut snap, "Ada Voss", "review", &noted, "");
+        if why.is_empty() {
+            say(&mut snap, step, "Held. Tell me what to change and I will cut a new draft.");
+        } else {
+            say(
+                &mut snap,
+                step,
+                &format!("Held. I wrote down: {why} The draft stays unpublished until you ask for another pass."),
+            );
+        }
     }
     ready(snap, from as i32)
 }
@@ -260,9 +274,72 @@ fn hire(req: &Request) -> Response {
     let Some(snap) = req.state.clone() else {
         return fail("Open a headquarters before hiring.".into());
     };
-    let team = normalize_team(&req.team, &snap.business.brief);
     let from = snap.log.len() as u32;
+    if !req.name.trim().is_empty() {
+        return hire_named(snap, from, req);
+    }
+    let team = normalize_team(&req.team, &snap.business.brief);
     hire_into(snap, from, &team)
+}
+
+fn hire_named(mut snap: Snapshot, from: u32, req: &Request) -> Response {
+    let name = clip(req.name.trim(), 48);
+    if snap.team.iter().any(|person| person.name.eq_ignore_ascii_case(&name)) {
+        say(&mut snap, from, &format!("{name} is already on the team."));
+        return ready(snap, from as i32);
+    }
+    let role = {
+        let raw = req.role.trim();
+        if raw.is_empty() {
+            "Specialist".to_string()
+        } else {
+            clip(raw, 40)
+        }
+    };
+    let focus = {
+        let raw = req.message.trim();
+        if raw.is_empty() {
+            format!("Brought onto {} for the next task.", snap.business.name)
+        } else {
+            clip(raw, 160)
+        }
+    };
+    let model = if req.model.trim().is_empty() {
+        snap.business.model.clone()
+    } else {
+        normalize_model(&req.model)
+    };
+    let mut id = slug_id(&name);
+    if id == "note" {
+        id = format!("hire{}", snap.team.len() + 1);
+    }
+    let mut unique = id.clone();
+    let mut n = 2u32;
+    while snap.team.iter().any(|person| person.id == unique) {
+        unique = format!("{id}-{n}");
+        n += 1;
+    }
+    snap.team.push(Employee {
+        id: unique,
+        name: name.clone(),
+        role: role.clone(),
+        model,
+        focus,
+        lead: false,
+    });
+    let step = note_event(
+        &mut snap,
+        "Ada Voss",
+        "handoff",
+        &format!("Hired {name} as {role}. They are idle until the next task."),
+        "",
+    );
+    say(
+        &mut snap,
+        step,
+        &format!("{name} joined as {role}. I will hand them work on the next request."),
+    );
+    ready(snap, from as i32)
 }
 
 fn hire_into(mut snap: Snapshot, from: u32, team: &str) -> Response {
@@ -1524,6 +1601,24 @@ fn rename_from(message: &str) -> Option<String> {
     None
 }
 
+fn reason_from(message: &str) -> String {
+    let trimmed = message.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    if lower == "no" || lower == "reject" || lower == "reject it" || lower == "don't publish" {
+        return String::new();
+    }
+    if let Some(rest) = lower.strip_prefix("reject") {
+        let start = trimmed.len() - rest.len();
+        let rest = trimmed[start..].trim().trim_start_matches(['-', ':', ',', ' ']).trim();
+        return rest.to_string();
+    }
+    if lower.starts_with("don't publish") {
+        let rest = trimmed["don't publish".len()..].trim().trim_start_matches(['-', ':', ',']).trim();
+        return rest.to_string();
+    }
+    trimmed.to_string()
+}
+
 fn is_pause(message: &str) -> bool {
     let l = message.trim().to_ascii_lowercase();
     l == "pause" || l == "pause the team" || l == "pause the business" || l.starts_with("pause ")
@@ -1716,6 +1811,41 @@ mod tests {
         let next = res.snapshot.unwrap();
         assert!(next.published);
         assert!(next.approvals.iter().all(|a| a.status != "pending"));
+    }
+
+    #[test]
+    fn reject_records_a_reason() {
+        let snap = launch_brief("A booking site for a Lisbon ceramic studio called Barro", "website", "local");
+        let res = handle(Request {
+            op: "reject".into(),
+            message: "The headline could belong to any studio.".into(),
+            state: Some(snap),
+            ..Request::default()
+        });
+        let next = res.snapshot.expect("snapshot");
+        assert!(next.approvals.iter().any(|a| a.status == "rejected"));
+        assert!(!next.published);
+        assert!(next.messages.iter().any(|m| m.body.contains("any studio")));
+    }
+
+    #[test]
+    fn custom_hire_adds_one_person() {
+        let snap = launch_brief("A booking site for a Lisbon ceramic studio called Barro", "website", "local");
+        let before = snap.team.len();
+        let res = handle(Request {
+            op: "hire".into(),
+            name: "Sam Iyer".into(),
+            role: "Editor".into(),
+            message: "Cuts the long sentences.".into(),
+            state: Some(snap),
+            ..Request::default()
+        });
+        let next = res.snapshot.expect("snapshot");
+        assert_eq!(next.team.len(), before + 1);
+        let sam = next.team.iter().find(|e| e.name == "Sam Iyer").unwrap();
+        assert_eq!(sam.role, "Editor");
+        assert!(!sam.lead);
+        assert!(sam.focus.contains("sentences"));
     }
 
     #[test]

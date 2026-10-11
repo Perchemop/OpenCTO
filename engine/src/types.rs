@@ -16,6 +16,12 @@ pub struct Request {
     pub employee_id: String,
     #[serde(default)]
     pub approval_id: String,
+    /// Optional display name when hiring one person.
+    #[serde(default)]
+    pub name: String,
+    /// Optional role when hiring one person.
+    #[serde(default)]
+    pub role: String,
     #[serde(default)]
     pub state: Option<Snapshot>,
 }

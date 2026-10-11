@@ -7,13 +7,11 @@
       "status": 200,
       "title": "OpenCTO",
       "hasCanvas": false,
-      "bodyTextLen": 1885,
-      "bodyTextHash": "403e323f44271531702c51d555473f9e9f9b803816fa9c8d30a6102275e8b61d",
+      "bodyTextLen": 1926,
+      "bodyTextHash": "08f3ff45a24e492993e061300695e2683b2425dab4558d29e63fac6d2de2abdf",
       "bodyTextPrefix": "OpenCTO Guide FREE · LOCAL · RUST Staff a team. Keep the source.",
       "horizontalOverflow": false,
-      "consoleErrors": [
-        "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <body>\n      <PreviewHostBridge>\n      <AuthProvider>\n        <OutletImpl>\n          <Suspense fallback={null}>\n            <MatchImpl routeId=\"/\">\n              <MatchView router={{...}} match={{id:\"//\",ssr:true, ...}}>\n                <CatchBoundary getResetKey={function getResetKey} errorComponent={function AppErrorComponent} ...>\n                  <MatchInnerImpl match={{id:\"//\",ssr:true, ...}}>\n                    <Lazy>\n                      <Home>\n                        <div className=\"min-h-dvh ...\">\n                          <header>\n                          <main className=\"mx-auto w-...\">\n                            <p>\n                            <h1>\n                            <p>\n                            <form className=\"mt-8 round...\" onSubmit={function onSubmit}>\n                              <label>\n                              <textarea\n                                id=\"brief\"\n                                rows={4}\n                                value=\"\"\n                                onChange={function onChange}\n                                onKeyDown={function onKeyDown}\n                                placeholder=\"A booking site for a Lisbon ceramic studio called Barro\"\n                                className=\"w-full resize-none bg-transparent px-2 py-2 text-base text-fg outline-none ...\"\n-                               style={{caret-color:\"transparent\"}}\n                              >\n                              ...\n                            ...\n      ...\n"
-      ],
+      "consoleErrors": [],
       "pageErrors": [],
       "screenshot": "/workspace/screenshots/app-builder-preview.png"
     },
@@ -23,8 +21,8 @@
       "status": 200,
       "title": "OpenCTO",
       "hasCanvas": false,
-      "bodyTextLen": 1841,
-      "bodyTextHash": "b9e3e24c0bfdb3e9bace7202429b87f26dd78c396c43d3dc0f69b6cb568ff5a0",
+      "bodyTextLen": 1882,
+      "bodyTextHash": "e70e8910a106470d519a2b38d701d7eae3d4a00ee82670385c0f3d23eac91d92",
       "bodyTextPrefix": "OpenCTO Guide FREE · LOCAL · RUST Staff a team. Keep the source.",
       "horizontalOverflow": false,
       "consoleErrors": [],

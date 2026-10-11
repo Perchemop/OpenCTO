@@ -26,7 +26,8 @@ fn main() {
                  opencto run < request.json\n  \
                  opencto version\n\n\
                  request.json: {{\"op\":\"launch\",\"brief\":\"...\",\"team\":\"website\",\"model\":\"local\"}}\n\
-                 ops: catalog | launch | chat | approve | reject | pause | resume | hire | fire",
+                 ops: catalog | launch | chat | approve | reject | pause | resume | hire | fire\n\
+                 hire one person with {{\"op\":\"hire\",\"name\":\"Sam Iyer\",\"role\":\"Editor\",\"message\":\"Cuts long sentences.\"}}",
                 version = opencto::VERSION
             );
         }

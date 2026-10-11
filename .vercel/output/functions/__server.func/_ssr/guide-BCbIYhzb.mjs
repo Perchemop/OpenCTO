@@ -1,6 +1,6 @@
 import { J as require_jsx_runtime, y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { t as Mark } from "./mark-Bt-R4fDU.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/guide-C6DGyMyG.js
+//#region node_modules/.nitro/vite/services/ssr/assets/guide-BCbIYhzb.js
 var import_jsx_runtime = require_jsx_runtime();
 function Guide() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -33,6 +33,14 @@ function Guide() {
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-4 text-base leading-relaxed text-muted",
 					children: "OpenCTO is an independent, MIT-licensed reimplementation of the public cto.new workflow: a lead, a hired team, tasks, a plan, a preview, and an approval before anything is called published. It is not affiliated with cto.new or Engine Labs. The desk you are using runs the Rust engine as WebAssembly. The same crate is a command-line tool with no account and no network."
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "mt-10 font-serif text-3xl",
+					children: "Several businesses"
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "mt-3 text-sm leading-relaxed text-muted",
+					children: "Starting another brief keeps the previous desk. Switch from the menu under the name, or from the search button in the header. Clearing a desk in settings removes only that one. Downloads are a zip of the files written so far — still on your machine, still not a pull request."
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
 					className: "mt-10 font-serif text-3xl",

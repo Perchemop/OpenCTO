@@ -1,9 +1,9 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { J as require_jsx_runtime, b as useNavigate, q as require_react, y as Link } from "../_libs/@tanstack/react-router+[...].mjs";
 import { t as Mark } from "./mark-Bt-R4fDU.mjs";
-import { n as PROMPTS, o as useOpenCto, r as TEAMS, t as MODELS } from "./types-BumhLaSY.mjs";
-import { h as ArrowUp, i as Shuffle } from "../_libs/lucide-react.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-Bd13217I.js
+import { n as PROMPTS, o as useOpenCto, r as TEAMS, t as MODELS } from "./types-CN9twMUX.mjs";
+import { _ as ArrowUp, i as Shuffle } from "../_libs/lucide-react.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-BhN49gM9.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function Home() {
@@ -68,7 +68,7 @@ function Home() {
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 					className: "mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg",
-					children: "An open-source headquarters for the way a hosted coding CTO works: a lead, a small team, a plan, a kanban, and a preview you approve. The orchestrator is a Rust crate running in this browser. No account. No API key."
+					children: "An open-source headquarters for the way a hosted coding CTO works: a lead, a small team, a plan, a kanban, and a preview you approve. The orchestrator is a Rust crate running in this browser. No account. No API key. A second brief keeps the first business."
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
 					className: "mt-8 rounded-lg border border-line bg-surface p-3 sm:p-4",
@@ -86,6 +86,7 @@ function Home() {
 							id: "brief",
 							rows: 4,
 							value: draft,
+							suppressHydrationWarning: true,
 							onChange: (event) => setDraft(event.target.value),
 							onKeyDown: (event) => {
 								if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {

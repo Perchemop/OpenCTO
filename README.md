@@ -1,6 +1,6 @@
 # OpenCTO
 
-A free, open-source headquarters for an AI team. You describe the work. A lead staffs a small desk, writes a plan and files, and stops at an approval. The orchestrator is Rust. The desk runs in the browser via WebAssembly, or as a CLI. No account. No API key. No paid model.
+A free, open-source headquarters for an AI team. You describe the work. A lead staffs a small desk, writes a plan and files, and stops at an approval. You can keep more than one business, hire a named person, reject with a reason, and download the workspace. The orchestrator is Rust. The desk runs in the browser via WebAssembly, or as a CLI. No account. No API key. No paid model.
 
 OpenCTO is an independent reimplementation of the public [cto.new](https://cto.new) workflow (lead chat, employees, tasks, plan, preview, approvals). It is not affiliated with cto.new or Engine Labs.
 

@@ -65,7 +65,7 @@ function Home() {
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
           An open-source headquarters for the way a hosted coding CTO works: a lead, a small team, a plan,
           a kanban, and a preview you approve. The orchestrator is a Rust crate running in this browser.
-          No account. No API key.
+          No account. No API key. A second brief keeps the first business.
         </p>
 
         <form

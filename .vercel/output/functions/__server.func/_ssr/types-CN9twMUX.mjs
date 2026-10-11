@@ -1,5 +1,5 @@
 import { n as create, t as persist } from "../_libs/zustand.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/types-BumhLaSY.js
+//#region node_modules/.nitro/vite/services/ssr/assets/types-CN9twMUX.js
 var pending = null;
 function loadEngine() {
 	if (!pending) pending = init();
@@ -27,7 +27,53 @@ async function init() {
 		return JSON.parse(json);
 	} };
 }
-function apply(res, set) {
+function deskId() {
+	return `d${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+function upsert(desks, record) {
+	if (desks.findIndex((desk) => desk.id === record.id) < 0) return [...desks, record];
+	return desks.map((desk) => desk.id === record.id ? record : desk);
+}
+function commit(set, get, patch) {
+	const current = get();
+	const snapshot = patch.snapshot === void 0 ? current.snapshot : patch.snapshot;
+	const step = patch.step === void 0 ? current.step : patch.step;
+	const section = patch.section === void 0 ? current.section : patch.section;
+	let activeId = patch.activeId === void 0 ? current.activeId : patch.activeId;
+	let desks = patch.desks ? patch.desks.slice() : current.desks.slice();
+	if (patch.snapshot === null) {
+		if (current.activeId) desks = desks.filter((desk) => desk.id !== current.activeId);
+		const next = desks.at(-1) ?? null;
+		set({
+			...patch,
+			desks,
+			activeId: next?.id ?? null,
+			snapshot: next?.snapshot ?? null,
+			step: next?.step ?? 0,
+			section: next?.section ?? "lead",
+			playing: patch.playing ?? false
+		});
+		return;
+	}
+	if (snapshot) {
+		if (!activeId) activeId = deskId();
+		desks = upsert(desks, {
+			id: activeId,
+			snapshot,
+			step,
+			section
+		});
+	}
+	set({
+		...patch,
+		snapshot: snapshot ?? null,
+		step,
+		section,
+		activeId,
+		desks
+	});
+}
+function apply(res, set, get) {
 	if (!res.ok || !res.snapshot) {
 		set({
 			busy: false,
@@ -35,16 +81,16 @@ function apply(res, set) {
 		});
 		return;
 	}
-	const next = {
+	const patch = {
 		snapshot: res.snapshot,
 		busy: false,
 		error: null
 	};
 	if (res.play_from >= 0) {
-		next.step = res.play_from;
-		next.playing = res.play_from < res.snapshot.log.length;
+		patch.step = res.play_from;
+		patch.playing = res.play_from < res.snapshot.log.length;
 	}
-	set(next);
+	commit(set, get, patch);
 }
 var useOpenCto = create()(persist((set, get) => ({
 	snapshot: null,
@@ -56,6 +102,8 @@ var useOpenCto = create()(persist((set, get) => ({
 	team: "website",
 	busy: false,
 	error: null,
+	desks: [],
+	activeId: null,
 	async launch(brief) {
 		const text = brief.trim();
 		if (!text) {
@@ -80,14 +128,30 @@ var useOpenCto = create()(persist((set, get) => ({
 				});
 				return false;
 			}
-			set({
+			const current = get();
+			let desks = current.desks;
+			if (current.snapshot && current.activeId) desks = upsert(desks, {
+				id: current.activeId,
+				snapshot: current.snapshot,
+				step: current.step,
+				section: current.section
+			});
+			const id = deskId();
+			commit(set, get, {
 				snapshot: res.snapshot,
 				step: 0,
 				playing: true,
 				section: "lead",
 				busy: false,
 				error: null,
-				draft: ""
+				draft: "",
+				activeId: id,
+				desks: [...desks, {
+					id,
+					snapshot: res.snapshot,
+					step: 0,
+					section: "lead"
+				}]
 			});
 			return true;
 		} catch (error) {
@@ -111,7 +175,7 @@ var useOpenCto = create()(persist((set, get) => ({
 				op: "chat",
 				message: text,
 				state: get().snapshot
-			}), set);
+			}), set, get);
 		} catch (error) {
 			set({
 				busy: false,
@@ -119,7 +183,7 @@ var useOpenCto = create()(persist((set, get) => ({
 			});
 		}
 	},
-	async decide(approve, approvalId = "") {
+	async decide(approve, approvalId = "", reason = "") {
 		if (!get().snapshot) return;
 		set({
 			busy: true,
@@ -129,8 +193,9 @@ var useOpenCto = create()(persist((set, get) => ({
 			apply((await loadEngine()).run({
 				op: approve ? "approve" : "reject",
 				approval_id: approvalId,
+				message: reason,
 				state: get().snapshot
-			}), set);
+			}), set, get);
 		} catch (error) {
 			set({
 				busy: false,
@@ -158,7 +223,7 @@ var useOpenCto = create()(persist((set, get) => ({
 				return;
 			}
 			const step = get().step;
-			set({
+			commit(set, get, {
 				snapshot: res.snapshot,
 				busy: false,
 				playing: status === "resume" && step < res.snapshot.log.length
@@ -181,7 +246,29 @@ var useOpenCto = create()(persist((set, get) => ({
 				op: "hire",
 				team,
 				state: get().snapshot
-			}), set);
+			}), set, get);
+		} catch (error) {
+			set({
+				busy: false,
+				error: error instanceof Error ? error.message : "Could not hire."
+			});
+		}
+	},
+	async hireCustom(name, role, focus) {
+		if (!get().snapshot || !name.trim()) return;
+		set({
+			busy: true,
+			error: null
+		});
+		try {
+			apply((await loadEngine()).run({
+				op: "hire",
+				name: name.trim(),
+				role: role.trim(),
+				message: focus.trim(),
+				model: get().model,
+				state: get().snapshot
+			}), set, get);
 		} catch (error) {
 			set({
 				busy: false,
@@ -200,7 +287,7 @@ var useOpenCto = create()(persist((set, get) => ({
 				op: "fire",
 				employee_id: employeeId,
 				state: get().snapshot
-			}), set);
+			}), set, get);
 		} catch (error) {
 			set({
 				busy: false,
@@ -208,17 +295,39 @@ var useOpenCto = create()(persist((set, get) => ({
 			});
 		}
 	},
+	switchDesk(id) {
+		const current = get();
+		const target = current.desks.find((desk) => desk.id === id);
+		if (!target || target.id === current.activeId) return;
+		let desks = current.desks;
+		if (current.snapshot && current.activeId) desks = upsert(desks, {
+			id: current.activeId,
+			snapshot: current.snapshot,
+			step: current.step,
+			section: current.section
+		});
+		const fresh = desks.find((desk) => desk.id === id) ?? target;
+		commit(set, get, {
+			desks,
+			activeId: fresh.id,
+			snapshot: fresh.snapshot,
+			step: fresh.step,
+			section: fresh.section,
+			playing: false,
+			error: null
+		});
+	},
 	advance() {
 		const len = get().snapshot?.log.length ?? 0;
 		const next = get().step + 1;
-		if (next >= len) set({
+		if (next >= len) commit(set, get, {
 			step: len,
 			playing: false
 		});
-		else set({ step: next });
+		else commit(set, get, { step: next });
 	},
 	finishPlayback() {
-		set({
+		commit(set, get, {
 			step: get().snapshot?.log.length ?? 0,
 			playing: false
 		});
@@ -227,7 +336,7 @@ var useOpenCto = create()(persist((set, get) => ({
 		set({ playing });
 	},
 	setSection(section) {
-		set({ section });
+		commit(set, get, { section });
 	},
 	setDraft(draft) {
 		set({ draft });
@@ -241,7 +350,7 @@ var useOpenCto = create()(persist((set, get) => ({
 	patchSettings(patch) {
 		const snap = get().snapshot;
 		if (!snap) return;
-		set({ snapshot: {
+		commit(set, get, { snapshot: {
 			...snap,
 			settings: {
 				...snap.settings,
@@ -252,7 +361,7 @@ var useOpenCto = create()(persist((set, get) => ({
 	toggleMcp(id) {
 		const snap = get().snapshot;
 		if (!snap) return;
-		set({ snapshot: {
+		commit(set, get, { snapshot: {
 			...snap,
 			settings: {
 				...snap.settings,
@@ -264,7 +373,7 @@ var useOpenCto = create()(persist((set, get) => ({
 		} });
 	},
 	reset() {
-		set({
+		commit(set, get, {
 			snapshot: null,
 			step: 0,
 			playing: false,
@@ -274,6 +383,7 @@ var useOpenCto = create()(persist((set, get) => ({
 	}
 }), {
 	name: "opencto.v1",
+	version: 2,
 	skipHydration: true,
 	partialize: (state) => ({
 		snapshot: state.snapshot,
@@ -281,8 +391,28 @@ var useOpenCto = create()(persist((set, get) => ({
 		section: state.section,
 		draft: state.draft,
 		model: state.model,
-		team: state.team
-	})
+		team: state.team,
+		desks: state.desks,
+		activeId: state.activeId
+	}),
+	migrate: (persisted, version) => {
+		const state = persisted;
+		if (!state) return persisted;
+		if (version < 2 && state.snapshot && (!state.desks || state.desks.length === 0)) {
+			const id = "desk-1";
+			return {
+				...state,
+				activeId: id,
+				desks: [{
+					id,
+					snapshot: state.snapshot,
+					step: state.step ?? 0,
+					section: state.section ?? "lead"
+				}]
+			};
+		}
+		return state;
+	}
 }));
 var TEAMS = [
 	{

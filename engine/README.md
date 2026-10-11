@@ -12,6 +12,8 @@ JSON
 
 Operations: `catalog`, `launch`, `chat`, `approve`, `reject`, `pause`, `resume`, `hire`, `fire`.
 
+`reject` may include `message` as the reason. `hire` with `name` and `role` adds one person instead of a whole desk.
+
 Follow-up operations take the previous response's `snapshot` as `state`.
 
 Model ids (`local`, `alloy`, `qwen`, `devstral`, `deepseek`, `kimi`) are planning profiles. They do not call those providers. Wire your own OpenAI-compatible server in a fork if you want weights in the loop — the browser build is the deterministic planner on purpose.

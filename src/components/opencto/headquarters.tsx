@@ -1,10 +1,11 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Activity,
   AppWindow,
   ArrowUp,
   Check,
   Columns3,
+  Download,
   FastForward,
   FolderOpen,
   Inbox,
@@ -12,14 +13,18 @@ import {
   Pause,
   Play,
   ScrollText,
+  Search,
   Settings,
   Users,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { CommandPalette, type Command } from "@/components/opencto/commands";
 import { Mark } from "@/components/opencto/mark";
+import { suggestions } from "@/lib/opencto/suggest";
 import { useOpenCto } from "@/lib/opencto/store";
-import { columnAt, ownerName, TEAMS, type Section, type Snapshot } from "@/lib/opencto/types";
+import { columnAt, ownerName, TEAMS, type Employee, type Section, type Snapshot } from "@/lib/opencto/types";
+import { downloadBytes, downloadText, zipStore } from "@/lib/opencto/zip";
 
 const NAV: { id: Section; label: string; icon: typeof MessageSquare }[] = [
   { id: "lead", label: "Lead", icon: MessageSquare },
@@ -87,6 +92,7 @@ function usePlayback() {
 }
 
 function Desk({ snapshot }: { snapshot: Snapshot }) {
+  const navigate = useNavigate();
   const section = useOpenCto((s) => s.section);
   const setSection = useOpenCto((s) => s.setSection);
   const step = useOpenCto((s) => s.step);
@@ -97,9 +103,85 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
   const busy = useOpenCto((s) => s.busy);
   const error = useOpenCto((s) => s.error);
   const decide = useOpenCto((s) => s.decide);
+  const desks = useOpenCto((s) => s.desks);
+  const activeId = useOpenCto((s) => s.activeId);
+  const switchDesk = useOpenCto((s) => s.switchDesk);
   const paused = snapshot.business.status === "paused";
   const pending = snapshot.approvals.filter((item) => item.status === "pending" && item.reveal_step <= step);
   const progress = snapshot.log.length === 0 ? 100 : Math.round((step / snapshot.log.length) * 100);
+  const doing = snapshot.tasks.filter((task) => columnAt(task, step) === "doing").length;
+  const [commandsOpen, setCommandsOpen] = useState(false);
+  const [rejectFor, setRejectFor] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandsOpen((open) => !open);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  function downloadWorkspace() {
+    const files = snapshot.files.filter((file) => file.reveal_step <= step && file.content);
+    if (files.length === 0) return;
+    const slug = snapshot.business.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "opencto";
+    downloadBytes(
+      zipStore(files.map((file) => ({ path: file.path, content: file.content }))),
+      `${slug}-workspace.zip`,
+      "application/zip",
+    );
+  }
+
+  const commands: Command[] = [
+    ...NAV.map((item) => ({
+      id: `go-${item.id}`,
+      label: `Open ${item.label.toLowerCase()}`,
+      hint: "View",
+      run: () => setSection(item.id),
+    })),
+    {
+      id: "status",
+      label: paused ? "Resume the business" : "Pause the business",
+      run: () => void setRunStatus(paused ? "resume" : "pause"),
+    },
+    {
+      id: "play",
+      label: playing ? "Hold playback" : "Play the work log",
+      run: () => setPlaying(!playing),
+    },
+    { id: "skip", label: "Skip playback", run: finishPlayback },
+    ...(pending[0]
+      ? [
+          {
+            id: "approve",
+            label: "Approve the pending gate",
+            run: () => void decide(true, pending[0].id),
+          },
+        ]
+      : []),
+    { id: "zip", label: "Download the workspace", hint: "ZIP", run: downloadWorkspace },
+    {
+      id: "new",
+      label: "Start another business",
+      hint: "Keeps this one",
+      run: () => void navigate({ to: "/" }),
+    },
+    ...desks
+      .filter((desk) => desk.id !== activeId)
+      .map((desk) => ({
+        id: `desk-${desk.id}`,
+        label: `Switch to ${desk.snapshot.business.name}`,
+        hint: "Business",
+        run: () => switchDesk(desk.id),
+      })),
+  ];
 
   return (
     <div className="flex h-dvh flex-col bg-bg text-fg">
@@ -117,6 +199,17 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
           </span>
           <button
             type="button"
+            onClick={() => setCommandsOpen(true)}
+            className="inline-flex size-11 items-center justify-center rounded-full border border-line"
+            aria-label="Commands"
+          >
+            <Search className="size-4" aria-hidden />
+          </button>
+          <Link to="/" className="inline-flex min-h-11 items-center rounded-full border border-line px-3 text-sm">
+            New
+          </Link>
+          <button
+            type="button"
             disabled={busy}
             onClick={() => void setRunStatus(paused ? "resume" : "pause")}
             className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
@@ -125,6 +218,25 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
             {paused ? "Resume" : "Pause"}
           </button>
         </div>
+        {desks.length > 1 ? (
+          <div className="px-3 pb-3 sm:px-4">
+            <label className="sr-only" htmlFor="business-switch">
+              Business
+            </label>
+            <select
+              id="business-switch"
+              value={activeId ?? ""}
+              onChange={(event) => switchDesk(event.target.value)}
+              className="min-h-11 max-w-full rounded-full border border-line bg-bg px-3 text-sm text-fg"
+            >
+              {desks.map((desk) => (
+                <option key={desk.id} value={desk.id}>
+                  {desk.snapshot.business.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="h-1 bg-line" aria-hidden>
           <div className="h-full bg-accent transition-all" style={{ width: `${progress}%` }} />
         </div>
@@ -143,6 +255,8 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
             >
               <Icon className="size-4" aria-hidden />
               {item.label}
+              {item.id === "tasks" && doing > 0 ? <span className="tabular-nums">{doing}</span> : null}
+              {item.id === "inbox" && pending.length > 0 ? <span className="tabular-nums">{pending.length}</span> : null}
             </button>
           );
         })}
@@ -155,15 +269,45 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
             <p className="text-sm text-muted">{pending[0].detail}</p>
           </div>
           <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void decide(false, pending[0].id)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
-            >
-              <X className="size-4" aria-hidden />
-              Reject
-            </button>
+            {rejectFor === pending[0].id ? (
+              <form
+                className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void decide(false, pending[0].id, reason);
+                  setRejectFor(null);
+                  setReason("");
+                }}
+              >
+                <label className="sr-only" htmlFor="reject-reason">
+                  Why hold this draft
+                </label>
+                <input
+                  id="reject-reason"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  placeholder="Why hold it? Optional."
+                  className="min-h-11 rounded-full border border-line bg-bg px-3 text-sm text-fg outline-none sm:w-64"
+                />
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-3 text-sm"
+                >
+                  Hold the draft
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setRejectFor(pending[0].id)}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
+              >
+                <X className="size-4" aria-hidden />
+                Reject
+              </button>
+            )}
             <button
               type="button"
               disabled={busy}
@@ -216,6 +360,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
           </div>
         </div>
       ) : null}
+      <CommandPalette open={commandsOpen} onClose={() => setCommandsOpen(false)} commands={commands} />
     </div>
   );
 }
@@ -227,28 +372,70 @@ function Lead({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   const messages = snapshot.messages.filter((message) => message.at_step <= step);
   const events = snapshot.log.filter((event) => event.step <= step);
   const latest = events[events.length - 1];
+  const ideas = suggestions(snapshot, step);
+  const timeline = [
+    ...messages.map((message) => ({
+      key: message.id,
+      order: message.at_step * 10,
+      kind: "message" as const,
+      message,
+    })),
+    ...events.map((event) => ({
+      key: `e${event.step}-${event.kind}`,
+      order: event.step * 10 + 1,
+      kind: "event" as const,
+      event,
+    })),
+  ].sort((a, b) => a.order - b.order);
+
+  function submit(next: string) {
+    const value = next.trim();
+    if (!value) return;
+    setText("");
+    void send(value);
+  }
 
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-4 px-3 py-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <section className="flex min-w-0 flex-col gap-3">
         <ul className="flex flex-col gap-3">
-          {messages.map((message) => (
-            <li
-              key={message.id}
-              className={`max-w-prose rounded-lg px-4 py-3 text-sm leading-relaxed ${message.role === "user" ? "ml-auto bg-accent text-ink" : "mr-auto border border-line bg-surface text-fg"}`}
-            >
-              <p className="mb-1 text-xs tracking-wide uppercase opacity-70">{message.from}</p>
-              {message.body}
-            </li>
-          ))}
+          {timeline.map((item) =>
+            item.kind === "message" ? (
+              <li
+                key={item.key}
+                className={`max-w-prose rounded-lg px-4 py-3 text-sm leading-relaxed ${item.message.role === "user" ? "ml-auto bg-accent text-ink" : "mr-auto border border-line bg-surface text-fg"}`}
+              >
+                <p className="mb-1 text-xs tracking-wide uppercase opacity-70">{item.message.from}</p>
+                {item.message.body}
+              </li>
+            ) : (
+              <li key={item.key} className="mr-auto max-w-prose rounded-lg border border-line px-3 py-2 text-sm">
+                <p className="text-xs tracking-wide text-accent uppercase">
+                  {item.event.actor} · {item.event.kind}
+                </p>
+                <p className="mt-1 leading-relaxed">{item.event.text}</p>
+              </li>
+            ),
+          )}
         </ul>
+        <div className="flex flex-wrap gap-2">
+          {ideas.map((idea) => (
+            <button
+              key={idea}
+              type="button"
+              disabled={busy}
+              onClick={() => submit(idea)}
+              className="min-h-11 rounded-full border border-line px-3 text-left text-sm text-muted"
+            >
+              {idea}
+            </button>
+          ))}
+        </div>
         <form
           className="sticky bottom-0 flex items-end gap-2 rounded-lg border border-line bg-surface p-2"
           onSubmit={(event) => {
             event.preventDefault();
-            const next = text;
-            setText("");
-            void send(next);
+            submit(text);
           }}
         >
           <label htmlFor="lead-message" className="sr-only">
@@ -298,44 +485,88 @@ function Lead({ snapshot, step }: { snapshot: Snapshot; step: number }) {
 
 function Team({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   const hire = useOpenCto((s) => s.hire);
+  const hireCustom = useOpenCto((s) => s.hireCustom);
   const fire = useOpenCto((s) => s.fire);
   const busy = useOpenCto((s) => s.busy);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  const [focus, setFocus] = useState("");
   const working = new Set(
     snapshot.tasks.filter((task) => columnAt(task, step) === "doing").map((task) => task.owner),
   );
+  const lead = snapshot.team.find((person) => person.lead);
+  const reports = snapshot.team.filter((person) => !person.lead);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-3 py-4">
+      <h2 className="font-serif text-3xl">Org chart</h2>
+      <p className="mt-1 text-sm text-muted">The lead delegates. Everyone else reports to them.</p>
+      {lead ? (
+        <div className="mx-auto mt-4 max-w-md">
+          <PersonCard person={lead} working={working.has(lead.id)} busy={busy} />
+          {reports.length > 0 ? <div className="mx-auto h-6 w-px bg-line" aria-hidden /> : null}
+        </div>
+      ) : null}
       <ul className="grid gap-3 sm:grid-cols-2">
-        {snapshot.team.map((person) => (
-          <li key={person.id} className="rounded-lg border border-line bg-surface p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-serif text-2xl">{person.name}</p>
-                <p className="text-sm text-muted">
-                  {person.role}
-                  {person.lead ? " · lead" : ""}
-                </p>
-              </div>
-              <span className="rounded-full border border-line px-2 py-1 text-xs text-muted">
-                {working.has(person.id) ? "Working" : "Idle"}
-              </span>
-            </div>
-            <p className="mt-3 text-sm leading-relaxed">{person.focus}</p>
-            <p className="mt-2 text-xs tracking-wide text-accent uppercase">{person.model}</p>
-            {person.lead ? null : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void fire(person.id)}
-                className="mt-4 min-h-11 text-sm text-muted underline-offset-2 hover:underline"
-              >
-                Remove from team
-              </button>
-            )}
+        {reports.map((person) => (
+          <li key={person.id}>
+            <PersonCard
+              person={person}
+              working={working.has(person.id)}
+              busy={busy}
+              onFire={() => void fire(person.id)}
+            />
           </li>
         ))}
       </ul>
+
+      <h2 className="mt-8 font-serif text-2xl">Hire one person</h2>
+      <form
+        className="mt-3 grid gap-2 sm:grid-cols-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void hireCustom(name, role, focus);
+          setName("");
+          setRole("");
+          setFocus("");
+        }}
+      >
+        <label className="text-sm">
+          Name
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            className="mt-1 min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-fg outline-none"
+          />
+        </label>
+        <label className="text-sm">
+          Role
+          <input
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            placeholder="Editor"
+            className="mt-1 min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-fg outline-none"
+          />
+        </label>
+        <label className="text-sm sm:col-span-2">
+          Focus
+          <input
+            value={focus}
+            onChange={(event) => setFocus(event.target.value)}
+            placeholder="Cuts the long sentences"
+            className="mt-1 min-h-11 w-full rounded-lg border border-line bg-surface px-3 text-fg outline-none"
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={busy || name.trim().length === 0}
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-accent px-4 text-sm font-medium text-ink disabled:opacity-50 sm:col-span-2 sm:w-fit"
+        >
+          Hire
+        </button>
+      </form>
+
       <h2 className="mt-8 font-serif text-2xl">Hire another desk</h2>
       <ul className="mt-3 divide-y divide-line border-y border-line">
         {TEAMS.map((team) => (
@@ -359,6 +590,47 @@ function Team({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   );
 }
 
+function PersonCard({
+  person,
+  working,
+  busy,
+  onFire,
+}: {
+  person: Employee;
+  working: boolean;
+  busy: boolean;
+  onFire?: () => void;
+}) {
+  return (
+    <article className="rounded-lg border border-line bg-surface p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-serif text-2xl">{person.name}</p>
+          <p className="text-sm text-muted">
+            {person.role}
+            {person.lead ? " · lead" : ""}
+          </p>
+        </div>
+        <span className="rounded-full border border-line px-2 py-1 text-xs text-muted">
+          {working ? "Working" : "Idle"}
+        </span>
+      </div>
+      <p className="mt-3 text-sm leading-relaxed">{person.focus}</p>
+      <p className="mt-2 text-xs tracking-wide text-accent uppercase">{person.model}</p>
+      {onFire ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onFire}
+          className="mt-4 min-h-11 text-sm text-muted underline-offset-2 hover:underline"
+        >
+          Remove from team
+        </button>
+      ) : null}
+    </article>
+  );
+}
+
 function Site({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   const ready = snapshot.log.length === 0 || step >= Math.max(1, snapshot.log.length - 1);
   return (
@@ -374,7 +646,7 @@ function Site({ snapshot, step }: { snapshot: Snapshot; step: number }) {
           title="Draft preview"
           sandbox=""
           srcDoc={snapshot.site_html}
-          className="min-h-96 w-full flex-1 rounded-lg border border-line bg-fg"
+          className="min-h-96 w-full flex-1 rounded-lg border border-line bg-surface"
         />
       ) : (
         <div className="grid min-h-96 flex-1 place-items-center rounded-lg border border-dashed border-line text-sm text-muted">
@@ -448,25 +720,58 @@ function Files({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   }
 
   return (
-    <div className="grid min-h-96 gap-3 px-3 py-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-      <ul className="rounded-lg border border-line">
-        {visible.map((file) => (
-          <li key={file.path}>
-            <button
-              type="button"
-              onClick={() => setSelected(file.path)}
-              className={`flex min-h-11 w-full items-center px-3 text-left text-sm ${current?.path === file.path ? "bg-accent text-ink" : "text-fg"}`}
-            >
-              {file.path}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {current ? (
-        <pre className="max-h-dvh overflow-auto rounded-lg border border-line bg-surface p-4 text-xs leading-relaxed text-fg">
-          {current.content || "Still writing this file."}
-        </pre>
-      ) : null}
+    <div className="px-3 py-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="font-serif text-2xl">Files</h2>
+        <button
+          type="button"
+          onClick={() => {
+            const packed = zipStore(visible.map((file) => ({ path: file.path, content: file.content })));
+            const slug =
+              snapshot.business.name
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "") || "opencto";
+            downloadBytes(packed, `${slug}-workspace.zip`, "application/zip");
+          }}
+          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
+        >
+          <Download className="size-4" aria-hidden />
+          Download all
+        </button>
+      </div>
+      <div className="grid min-h-96 gap-3 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <ul className="rounded-lg border border-line">
+          {visible.map((file) => (
+            <li key={file.path}>
+              <button
+                type="button"
+                onClick={() => setSelected(file.path)}
+                className={`flex min-h-11 w-full items-center px-3 text-left text-sm ${current?.path === file.path ? "bg-accent text-ink" : "text-fg"}`}
+              >
+                {file.path}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {current ? (
+          <div className="min-w-0">
+            <div className="mb-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => downloadText(current.content, current.path.split("/").pop() ?? "file.txt", "text/plain")}
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm"
+              >
+                <Download className="size-4" aria-hidden />
+                Download
+              </button>
+            </div>
+            <pre className="max-h-dvh overflow-auto rounded-lg border border-line bg-surface p-4 text-xs leading-relaxed text-fg">
+              {current.content || "Still writing this file."}
+            </pre>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

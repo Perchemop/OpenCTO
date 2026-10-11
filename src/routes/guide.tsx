@@ -25,6 +25,13 @@ function Guide() {
           WebAssembly. The same crate is a command-line tool with no account and no network.
         </p>
 
+        <h2 className="mt-10 font-serif text-3xl">Several businesses</h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted">
+          Starting another brief keeps the previous desk. Switch from the menu under the name, or from the search
+          button in the header. Clearing a desk in settings removes only that one. Downloads are a zip of the
+          files written so far — still on your machine, still not a pull request.
+        </p>
+
         <h2 className="mt-10 font-serif text-3xl">What a run does</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted">
           <li>Reads the brief and picks a kind of work: site, product change, bugfix, marketing, or research.</li>
