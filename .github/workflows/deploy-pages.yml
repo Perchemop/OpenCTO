@@ -1,0 +1,87 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (SPA for GitHub Pages)
+        run: npm run build
+        env:
+          GITHUB_PAGES: "true"
+
+      - name: Prepare static output
+        run: |
+          set -e
+          # TanStack Start + SPA mode typically emits client assets here.
+          # Fall back through common locations so the workflow stays resilient.
+          if [ -d ".output/public" ]; then
+            OUT=".output/public"
+          elif [ -d "dist" ]; then
+            OUT="dist"
+          elif [ -d ".vercel/output/static" ]; then
+            OUT=".vercel/output/static"
+          else
+            echo "Could not find static build output"
+            find . -maxdepth 3 -type d -name public -o -name dist -o -name static 2>/dev/null || true
+            exit 1
+          fi
+          echo "Using output directory: $OUT"
+          mkdir -p _site
+          cp -a "$OUT"/. _site/
+          # GitHub Pages SPA fallback: any 404 serves the shell so client routing works.
+          if [ -f _site/index.html ]; then
+            cp _site/index.html _site/404.html
+          elif [ -f _site/_shell.html ]; then
+            cp _site/_shell.html _site/index.html
+            cp _site/_shell.html _site/404.html
+          fi
+          # Ensure the WASM engine is present
+          if [ ! -f _site/engine/opencto.wasm ]; then
+            mkdir -p _site/engine
+            if [ -f public/engine/opencto.wasm ]; then
+              cp public/engine/opencto.wasm _site/engine/opencto.wasm
+            fi
+          fi
+          ls -la _site | head -40
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
