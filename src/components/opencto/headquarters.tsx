@@ -2,10 +2,8 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Activity,
   AppWindow,
-  ArrowUp,
   Check,
   Columns3,
-  Download,
   FastForward,
   FolderOpen,
   Inbox,
@@ -18,16 +16,16 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CommandPalette, type Command } from "@/components/opencto/commands";
 import { Mark } from "@/components/opencto/mark";
-import { suggestions } from "@/lib/opencto/suggest";
-import { useOpenCto } from "@/lib/opencto/store";
-import { columnAt, ownerName, TEAMS, type Employee, type Section, type Snapshot } from "@/lib/opencto/types";
-import { downloadBytes, downloadText, zipStore } from "@/lib/opencto/zip";
 import { Lead, Team, LocalTip } from "@/components/opencto/hq-lead-team";
 import { Site, Plan, Tasks } from "@/components/opencto/hq-site-tasks";
-import { Files, InboxView, Runway, SettingsView } from "@/components/opencto/hq-files-settings";
+import { Files, InboxView } from "@/components/opencto/hq-files-inbox";
+import { Runway, SettingsView } from "@/components/opencto/hq-runway-settings";
+import { useOpenCto } from "@/lib/opencto/store";
+import { columnAt, type Section, type Snapshot } from "@/lib/opencto/types";
+import { downloadBytes, zipStore } from "@/lib/opencto/zip";
 
 const NAV: { id: Section; label: string; icon: typeof MessageSquare }[] = [
   { id: "lead", label: "Lead", icon: MessageSquare },
@@ -162,13 +160,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
     },
     { id: "skip", label: "Skip playback", run: finishPlayback },
     ...(pending[0]
-      ? [
-          {
-            id: "approve",
-            label: "Approve the pending gate",
-            run: () => void decide(true, pending[0].id),
-          },
-        ]
+      ? [{ id: "approve", label: "Approve the pending gate", run: () => void decide(true, pending[0].id) }]
       : []),
     { id: "zip", label: "Download the workspace", hint: "ZIP", run: downloadWorkspace },
     {
@@ -293,11 +285,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
                   placeholder="Why hold it? Optional."
                   className="min-h-11 rounded-full border border-line bg-bg px-3 text-sm text-fg outline-none sm:w-64"
                 />
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-3 text-sm"
-                >
+                <button type="submit" disabled={busy} className="inline-flex min-h-11 items-center justify-center rounded-full border border-line px-3 text-sm">
                   Hold the draft
                 </button>
               </form>
@@ -347,19 +335,11 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
             {playing ? "The team is working" : "Playback is paused"} · {step}/{snapshot.log.length}
           </p>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPlaying(!playing)}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3"
-            >
+            <button type="button" onClick={() => setPlaying(!playing)} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3">
               {playing ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
               {playing ? "Hold" : "Play"}
             </button>
-            <button
-              type="button"
-              onClick={finishPlayback}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3"
-            >
+            <button type="button" onClick={finishPlayback} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3">
               <FastForward className="size-4" aria-hidden />
               Skip
             </button>
