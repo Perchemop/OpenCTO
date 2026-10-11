@@ -21,6 +21,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Restore engine logic if truncated
+        run: |
+          set -e
+          LINES=$(wc -l < engine/src/logic.rs || echo 0)
+          BYTES=$(wc -c < engine/src/logic.rs || echo 0)
+          echo "logic.rs: $LINES lines, $BYTES bytes"
+          if [ "$BYTES" -lt 20000 ]; then
+            echo "logic.rs looks truncated; restoring known-good source"
+            curl -fsSL "https://raw.githubusercontent.com/Perchemop/OpenCTO/4bf6e278449caab748f14dd1d8572ffec5650afd/engine/src/logic.rs" -o engine/src/logic.rs
+            wc -l engine/src/logic.rs
+            wc -c engine/src/logic.rs
+          fi
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -61,7 +74,6 @@ jobs:
             OUT=".vercel/output/static"
           else
             echo "Could not find static build output"
-            find . -maxdepth 4 -type d \( -name client -o -name public -o -name dist -o -name static \) 2>/dev/null || true
             ls -la
             exit 1
           fi
