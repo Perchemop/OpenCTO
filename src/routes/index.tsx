@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowUp, Shuffle } from "lucide-react";
 import { Mark } from "@/components/opencto/mark";
+import { SignedIn, SignedOut, UserButton } from "@/lib/auth/gates";
 import { MODELS, PROMPTS, TEAMS } from "@/lib/opencto/types";
 import { useOpenCto } from "@/lib/opencto/store";
 
@@ -54,6 +55,14 @@ function Home() {
               Headquarters
             </Link>
           ) : null}
+          <SignedOut>
+            <Link to="/login" className="rounded-full border border-line px-3 py-2 text-fg hover:border-accent">
+              Sign in
+            </Link>
+          </SignedOut>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
         </nav>
       </header>
 
@@ -65,7 +74,7 @@ function Home() {
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
           An open-source headquarters for the way a hosted coding CTO works: a lead, a small team, a plan,
           a kanban, and a preview you approve. The orchestrator is a Rust crate running in this browser.
-          No account. No API key. A second brief keeps the first business.
+          No API key. Sign in optionally to keep businesses across devices.
         </p>
 
         <form
@@ -186,7 +195,7 @@ function Home() {
           <article>
             <h2 className="font-serif text-2xl">Yours to host</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              MIT licensed. The same engine is a CLI. Profiles are named for open models you can attach when you self-host.
+              MIT licensed. Sign in to sync desks across devices. The planner never needs an API key.
             </p>
           </article>
         </section>
