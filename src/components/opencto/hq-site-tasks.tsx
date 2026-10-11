@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { columnAt, ownerName, type Snapshot } from "@/lib/opencto/types";
+import { useMemo, useState } from "react";
+import { columnAt, ownerName, type PlanSection, type Snapshot } from "@/lib/opencto/types";
 
 export function Site({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   const ready = Boolean(snapshot.site_html) && (snapshot.log.length === 0 || step >= Math.max(1, snapshot.log.length - 1));
@@ -62,8 +62,74 @@ export function Site({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   );
 }
 
+/** Merge engine plan with live desk facts so Plan stays rich even on older WASM. */
+function enrichPlan(snapshot: Snapshot): PlanSection[] {
+  const headings = new Set(snapshot.plan.map((s) => s.heading.toLowerCase()));
+  const extra: PlanSection[] = [];
+  const seed = snapshot.seed;
+
+  if (!headings.has("services") && seed.services.length > 0) {
+    extra.push({
+      heading: "Services",
+      body: seed.services.map((s) => `• ${s.title}: ${s.body}`).join("\n"),
+    });
+  }
+  if (!headings.has("deliverables") && snapshot.tasks.length > 0) {
+    extra.push({
+      heading: "Deliverables",
+      body: snapshot.tasks
+        .map((t) => {
+          const art = t.artifact ? ` → ${t.artifact}` : "";
+          return `• ${t.title} (${t.column})${art}`;
+        })
+        .join("\n"),
+    });
+  }
+  if (!headings.has("workspace") && snapshot.files.length > 0) {
+    extra.push({
+      heading: "Workspace",
+      body: snapshot.files.map((f) => `• ${f.path} (${f.language})`).join("\n"),
+    });
+  }
+  if (!headings.has("success criteria")) {
+    extra.push({
+      heading: "Success criteria",
+      body: "A readable draft on this machine, tasks moved to review or done, and a manual approval before anything is called published. No live deploy, no pull request, no spend.",
+    });
+  }
+  if (!headings.has("context")) {
+    const place = seed.city ? `in ${seed.city}` : "location not specified";
+    extra.unshift({
+      heading: "Context",
+      body: [
+        seed.headline && `Headline: ${seed.headline}`,
+        seed.subhead && seed.subhead,
+        seed.proof && `Proof: ${seed.proof}`,
+        `Niche: ${seed.niche_label} (${place}). Kind: ${seed.kind}. Stack: ${seed.stack}.`,
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+  }
+
+  // Insert extras after Offer / Team if present, else append
+  if (snapshot.plan.length === 0) return extra;
+  const out = [...snapshot.plan];
+  const insertAt = Math.min(
+    out.findIndex((s) => /team|stack|risks/i.test(s.heading)) >>> 0 || out.length,
+    out.length,
+  );
+  // findIndex returns -1 when missing; >>> 0 makes it large - fix:
+  const idx = out.findIndex((s) => /team|stack|risks/i.test(s.heading));
+  const at = idx === -1 ? out.length : idx;
+  out.splice(at, 0, ...extra);
+  return out;
+}
+
 export function Plan({ snapshot }: { snapshot: Snapshot }) {
-  if (snapshot.plan.length === 0) {
+  const sections = useMemo(() => enrichPlan(snapshot), [snapshot]);
+
+  if (sections.length === 0) {
     return (
       <div className="mx-auto grid min-h-64 max-w-3xl place-items-center px-4 py-10 text-center">
         <div>
@@ -81,7 +147,7 @@ export function Plan({ snapshot }: { snapshot: Snapshot }) {
         {snapshot.business.tagline || snapshot.business.brief} · {snapshot.business.status}
       </p>
       <ol className="mt-6 space-y-6">
-        {snapshot.plan.map((section) => (
+        {sections.map((section) => (
           <li key={section.heading} className="rounded-lg border border-line bg-surface p-4">
             <h3 className="font-serif text-2xl">{section.heading}</h3>
             <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-muted">{section.body}</p>
