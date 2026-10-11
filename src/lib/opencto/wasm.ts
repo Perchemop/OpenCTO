@@ -19,7 +19,8 @@ export function loadEngine(): Promise<Engine> {
 }
 
 async function init(): Promise<Engine> {
-  const response = await fetch("/engine/opencto.wasm");
+  const base = import.meta.env.BASE_URL || "/";
+  const response = await fetch(`${base}engine/opencto.wasm`);
   if (!response.ok) {
     pending = null;
     throw new Error("The Rust engine did not load.");
