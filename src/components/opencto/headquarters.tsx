@@ -263,10 +263,9 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
               type="button"
               onClick={() => setSection(item.id)}
               className={`inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-sm sm:min-h-11 sm:gap-2 sm:px-3 ${active ? "bg-accent text-ink" : "text-muted"}`}
-              aria-label={item.label}
             >
-              <Icon className="size-4" aria-hidden />
-              <span className="hidden xs:inline sm:inline">{item.label}</span>
+              <Icon className="size-4 shrink-0" aria-hidden />
+              {item.label}
               {badge !== null ? <span className="tabular-nums text-xs">{badge}</span> : null}
             </button>
           );
