@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowUp, Shuffle } from "lucide-react";
 import { Mark } from "@/components/opencto/mark";
-import { SignedIn, SignedOut, UserButton } from "@/lib/auth/gates";
 import { MODELS, PROMPTS, TEAMS } from "@/lib/opencto/types";
 import { useOpenCto } from "@/lib/opencto/store";
 
@@ -55,26 +54,18 @@ function Home() {
               Headquarters
             </Link>
           ) : null}
-          <SignedOut>
-            <Link to="/login" className="rounded-full border border-line px-3 py-2 text-fg hover:border-accent">
-              Sign in
-            </Link>
-          </SignedOut>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
         </nav>
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-16 sm:px-6">
-        <p className="text-xs tracking-widest text-accent uppercase">Free · local · Rust</p>
+        <p className="text-xs tracking-widest text-accent uppercase">Free · local · no account</p>
         <h1 className="mt-3 max-w-3xl font-serif text-5xl leading-none font-medium tracking-tight sm:text-7xl">
           Staff a team. Keep the source.
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-          An open-source headquarters for the way a hosted coding CTO works: a lead, a small team, a plan,
-          a kanban, and a preview you approve. The orchestrator is a Rust crate running in this browser.
-          No API key. Sign in optionally to keep businesses across devices.
+          Open a desk in this browser. A Rust planner runs as WebAssembly — lead, team, plan, tasks, and a
+          preview you approve. No signup. No API key. Nothing to configure. Your work stays on this device
+          until you download a zip.
         </p>
 
         <form
@@ -157,6 +148,11 @@ function Home() {
           {error ? <p className="px-2 pt-3 text-sm text-accent">{error}</p> : null}
         </form>
 
+        <p className="mt-3 text-xs text-muted">
+          Tip: desks are saved in this browser. Download a workspace zip from Headquarters when you want a
+          backup.
+        </p>
+
         <section className="mt-14">
           <div className="flex items-end justify-between gap-4">
             <h2 className="font-serif text-3xl font-medium">Hire a desk</h2>
@@ -181,9 +177,9 @@ function Home() {
 
         <section className="mt-14 grid gap-8 sm:grid-cols-3">
           <article>
-            <h2 className="font-serif text-2xl">On this machine</h2>
+            <h2 className="font-serif text-2xl">Open and use</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              The planner compiles to WebAssembly. A run writes files, a plan, and a preview without calling a model vendor.
+              No account, no keys, no setup. Type a brief and start. The planner runs entirely in this browser.
             </p>
           </article>
           <article>
@@ -193,9 +189,10 @@ function Home() {
             </p>
           </article>
           <article>
-            <h2 className="font-serif text-2xl">Yours to host</h2>
+            <h2 className="font-serif text-2xl">Stays on this device</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">
-              MIT licensed. Sign in to sync desks across devices. The planner never needs an API key.
+              Businesses live in local storage on this browser. Export a zip anytime. Clear data only when you
+              choose.
             </p>
           </article>
         </section>
