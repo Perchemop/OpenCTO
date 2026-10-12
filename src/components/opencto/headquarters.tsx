@@ -23,7 +23,14 @@ import { Lead, Team, LocalTip } from "@/components/opencto/hq-lead-team";
 import { Site, Plan, Tasks } from "@/components/opencto/hq-site-tasks";
 import { Files, InboxView } from "@/components/opencto/hq-files-inbox";
 import { Runway, SettingsView } from "@/components/opencto/hq-runway-settings";
-import { useOpenCto } from "@/lib/opencto/store";
+import {
+  loadSession,
+  maybeAutoPush,
+  pullDesksFromGist,
+  pushDesksToGist,
+  type GitHubSession,
+} from "@/lib/opencto/github";
+import { useOpenCto, type DeskRecord } from "@/lib/opencto/store";
 import { columnAt, type Section, type Snapshot } from "@/lib/opencto/types";
 import { downloadBytes, zipStore } from "@/lib/opencto/zip";
 
@@ -92,6 +99,23 @@ function usePlayback() {
   }, [playing, step, len, advance, finishPlayback]);
 }
 
+function flushDesks(
+  desks: DeskRecord[],
+  activeId: string | null,
+  snapshot: Snapshot,
+  step: number,
+  section: Section,
+): DeskRecord[] {
+  let list = desks.slice();
+  if (snapshot && activeId) {
+    const record = { id: activeId, snapshot, step, section };
+    const idx = list.findIndex((d) => d.id === activeId);
+    if (idx < 0) list = [...list, record];
+    else list = list.map((d, i) => (i === idx ? record : d));
+  }
+  return list;
+}
+
 function Desk({ snapshot }: { snapshot: Snapshot }) {
   const navigate = useNavigate();
   const section = useOpenCto((s) => s.section);
@@ -108,6 +132,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
   const activeId = useOpenCto((s) => s.activeId);
   const switchDesk = useOpenCto((s) => s.switchDesk);
   const renameDesk = useOpenCto((s) => s.renameDesk);
+  const importDesks = useOpenCto((s) => s.importDesks);
   const paused = snapshot.business.status === "paused";
   const pending = snapshot.approvals.filter((item) => item.status === "pending" && item.reveal_step <= step);
   const progress = snapshot.log.length === 0 ? 100 : Math.round((step / snapshot.log.length) * 100);
@@ -117,11 +142,17 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
   const [reason, setReason] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(snapshot.business.name);
+  const [gh, setGh] = useState<GitHubSession | null>(() => loadSession());
+  const [syncNote, setSyncNote] = useState<string | null>(null);
 
   useEffect(() => {
     setRenameValue(snapshot.business.name);
     setRenaming(false);
   }, [snapshot.business.name, activeId]);
+
+  useEffect(() => {
+    setGh(loadSession());
+  }, [section]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -155,6 +186,29 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
     setRenaming(false);
   }
 
+  async function approveGate(id: string) {
+    await decide(true, id);
+    const list = flushDesks(useOpenCto.getState().desks, useOpenCto.getState().activeId, useOpenCto.getState().snapshot!, useOpenCto.getState().step, useOpenCto.getState().section);
+    maybeAutoPush(list, useOpenCto.getState().activeId);
+  }
+
+  async function pushNow() {
+    const list = flushDesks(desks, activeId, snapshot, step, section);
+    const res = await pushDesksToGist(list, activeId);
+    setGh(loadSession());
+    setSyncNote(res.ok ? "Pushed desks to GitHub" : res.error);
+  }
+
+  async function pullNow() {
+    const res = await pullDesksFromGist();
+    if (!res.ok) {
+      setSyncNote(res.error);
+      return;
+    }
+    importDesks(res.payload.desks, res.payload.activeId);
+    setSyncNote(`Pulled ${res.payload.desks.length} desk(s)`);
+  }
+
   const commands: Command[] = [
     ...NAV.map((item) => ({
       id: `go-${item.id}`,
@@ -174,9 +228,22 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
     },
     { id: "skip", label: "Skip playback", run: finishPlayback },
     ...(pending[0]
-      ? [{ id: "approve", label: "Approve the pending gate", run: () => void decide(true, pending[0].id) }]
+      ? [{ id: "approve", label: "Approve the pending gate", run: () => void approveGate(pending[0].id) }]
       : []),
     { id: "zip", label: "Download the workspace", hint: "ZIP", run: downloadWorkspace },
+    ...(gh
+      ? [
+          { id: "gh-push", label: "Push desks to GitHub", hint: "Gist", run: () => void pushNow() },
+          { id: "gh-pull", label: "Pull desks from GitHub", hint: "Gist", run: () => void pullNow() },
+        ]
+      : [
+          {
+            id: "gh-settings",
+            label: "Connect GitHub sync",
+            hint: "Settings",
+            run: () => setSection("settings"),
+          },
+        ]),
     {
       id: "rename",
       label: "Rename this business",
@@ -244,6 +311,16 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
             )}
             <p className="truncate text-xs text-muted">{snapshot.business.tagline}</p>
           </div>
+          {gh ? (
+            <button
+              type="button"
+              onClick={() => setSection("settings")}
+              className="hidden max-w-[7rem] truncate rounded-full border border-line px-2 py-1 text-xs text-muted sm:inline"
+              title="GitHub sync"
+            >
+              @{gh.user.login}
+            </button>
+          ) : null}
           <span className="hidden rounded-full border border-line px-3 py-1 text-xs text-muted md:inline">
             {snapshot.business.model}
           </span>
@@ -373,7 +450,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
             <button
               type="button"
               disabled={busy}
-              onClick={() => void decide(true, pending[0].id)}
+              onClick={() => void approveGate(pending[0].id)}
               className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-accent px-3 text-sm font-medium text-ink sm:flex-none"
             >
               <Check className="size-4" aria-hidden />
@@ -384,6 +461,14 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
       ) : null}
 
       {error ? <p className="border-b border-line px-4 py-2 text-sm text-accent">{error}</p> : null}
+      {syncNote ? (
+        <p className="border-b border-line px-4 py-2 text-sm text-muted">
+          {syncNote}{" "}
+          <button type="button" className="text-fg underline" onClick={() => setSyncNote(null)}>
+            Dismiss
+          </button>
+        </p>
+      ) : null}
 
       <LocalTip />
 
