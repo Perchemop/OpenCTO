@@ -107,6 +107,7 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
   const desks = useOpenCto((s) => s.desks);
   const activeId = useOpenCto((s) => s.activeId);
   const switchDesk = useOpenCto((s) => s.switchDesk);
+  const renameDesk = useOpenCto((s) => s.renameDesk);
   const paused = snapshot.business.status === "paused";
   const pending = snapshot.approvals.filter((item) => item.status === "pending" && item.reveal_step <= step);
   const progress = snapshot.log.length === 0 ? 100 : Math.round((step / snapshot.log.length) * 100);
@@ -114,6 +115,13 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
   const [commandsOpen, setCommandsOpen] = useState(false);
   const [rejectFor, setRejectFor] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(snapshot.business.name);
+
+  useEffect(() => {
+    setRenameValue(snapshot.business.name);
+    setRenaming(false);
+  }, [snapshot.business.name, activeId]);
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -141,6 +149,12 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
     );
   }
 
+  function commitRename() {
+    if (!activeId) return;
+    renameDesk(activeId, renameValue);
+    setRenaming(false);
+  }
+
   const commands: Command[] = [
     ...NAV.map((item) => ({
       id: `go-${item.id}`,
@@ -163,6 +177,14 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
       ? [{ id: "approve", label: "Approve the pending gate", run: () => void decide(true, pending[0].id) }]
       : []),
     { id: "zip", label: "Download the workspace", hint: "ZIP", run: downloadWorkspace },
+    {
+      id: "rename",
+      label: "Rename this business",
+      run: () => {
+        setRenameValue(snapshot.business.name);
+        setRenaming(true);
+      },
+    },
     {
       id: "new",
       label: "Start another business",
@@ -187,7 +209,39 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
             <Mark className="size-6" />
           </Link>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-serif text-lg leading-none sm:text-xl">{snapshot.business.name}</p>
+            {renaming ? (
+              <form
+                className="flex min-w-0 items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  commitRename();
+                }}
+              >
+                <label className="sr-only" htmlFor="desk-rename">
+                  Business name
+                </label>
+                <input
+                  id="desk-rename"
+                  value={renameValue}
+                  autoFocus
+                  onChange={(event) => setRenameValue(event.target.value)}
+                  onBlur={commitRename}
+                  className="min-h-9 w-full min-w-0 rounded-lg border border-line bg-bg px-2 font-serif text-lg text-fg outline-none sm:text-xl"
+                />
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setRenameValue(snapshot.business.name);
+                  setRenaming(true);
+                }}
+                className="block max-w-full truncate text-left font-serif text-lg leading-none sm:text-xl"
+                title="Rename"
+              >
+                {snapshot.business.name}
+              </button>
+            )}
             <p className="truncate text-xs text-muted">{snapshot.business.tagline}</p>
           </div>
           <span className="hidden rounded-full border border-line px-3 py-1 text-xs text-muted md:inline">
@@ -221,22 +275,24 @@ function Desk({ snapshot }: { snapshot: Snapshot }) {
           </button>
         </div>
         {desks.length > 1 ? (
-          <div className="px-2 pb-2 sm:px-4 sm:pb-3">
+          <div className="flex flex-wrap items-center gap-2 px-2 pb-2 sm:px-4 sm:pb-3">
             <label className="sr-only" htmlFor="business-switch">
-              Business
+              Switch business
             </label>
             <select
               id="business-switch"
               value={activeId ?? ""}
               onChange={(event) => switchDesk(event.target.value)}
-              className="min-h-10 max-w-full rounded-full border border-line bg-bg px-3 text-sm text-fg sm:min-h-11"
+              className="min-h-10 max-w-full flex-1 rounded-full border border-line bg-bg px-3 text-sm text-fg sm:min-h-11 sm:max-w-xs"
             >
               {desks.map((desk) => (
                 <option key={desk.id} value={desk.id}>
                   {desk.snapshot.business.name}
+                  {desk.id === activeId ? " · current" : ""}
                 </option>
               ))}
             </select>
+            <p className="text-xs text-muted">{desks.length} desks on this device</p>
           </div>
         ) : null}
         <div className="h-1 bg-line" aria-hidden>
