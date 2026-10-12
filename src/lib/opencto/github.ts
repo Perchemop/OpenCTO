@@ -13,6 +13,7 @@ const LS_USER = "opencto.github.user";
 const LS_GIST = "opencto.github.gist";
 const LS_CLIENT = "opencto.github.clientId";
 const LS_AUTO = "opencto.github.autoPush";
+const LS_PULL = "opencto.github.pullOnOpen";
 const GIST_FILENAME = "opencto-desks.json";
 
 export type GitHubUser = { login: string; name?: string | null; avatar_url?: string };
@@ -68,6 +69,23 @@ export function setAutoPush(on: boolean) {
   try {
     if (on) localStorage.setItem(LS_AUTO, "1");
     else localStorage.removeItem(LS_AUTO);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getPullOnOpen(): boolean {
+  try {
+    return localStorage.getItem(LS_PULL) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setPullOnOpen(on: boolean) {
+  try {
+    if (on) localStorage.setItem(LS_PULL, "1");
+    else localStorage.removeItem(LS_PULL);
   } catch {
     /* ignore */
   }
@@ -248,7 +266,40 @@ async function findExistingGist(token: string): Promise<string | null> {
   return null;
 }
 
-/** Push desks to a private Gist. Creates one if needed. */
+function safeName(name: string) {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40) || "desk"
+  );
+}
+
+/** Extra human-readable files for the active desk (site preview + plan). */
+function workspaceFiles(desks: DeskRecord[], activeId: string | null): Record<string, { content: string }> {
+  const active = desks.find((d) => d.id === activeId) ?? desks[0];
+  if (!active?.snapshot) return {};
+  const snap = active.snapshot;
+  const base = safeName(snap.business?.name || "desk");
+  const files: Record<string, { content: string }> = {};
+  if (snap.site_html?.trim()) {
+    files[`${base}-site.html`] = { content: snap.site_html };
+  }
+  if (Array.isArray(snap.plan) && snap.plan.length > 0) {
+    const md = snap.plan.map((section) => `## ${section.heading}\n\n${section.body}\n`).join("\n");
+    files[`${base}-plan.md`] = { content: `# ${snap.business.name}\n\n${md}` };
+  }
+  // Cap individual file sizes for gist friendliness
+  for (const [key, value] of Object.entries(files)) {
+    if (value.content.length > 400_000) {
+      files[key] = { content: value.content.slice(0, 400_000) + "\n\n/* truncated for gist size */\n" };
+    }
+  }
+  return files;
+}
+
+/** Push desks to a private Gist. Creates one if needed. Also writes site/plan for the active desk. */
 export async function pushDesksToGist(
   desks: DeskRecord[],
   activeId: string | null,
@@ -262,6 +313,10 @@ export async function pushDesksToGist(
     activeId,
   };
   const content = JSON.stringify(payload, null, 2);
+  const files: Record<string, { content: string }> = {
+    [GIST_FILENAME]: { content },
+    ...workspaceFiles(desks, activeId),
+  };
   let gistId = session.gistId || (await findExistingGist(session.token));
 
   if (gistId) {
@@ -269,7 +324,7 @@ export async function pushDesksToGist(
       method: "PATCH",
       body: JSON.stringify({
         description: "OpenCTO desk backup (private)",
-        files: { [GIST_FILENAME]: { content } },
+        files,
       }),
     });
     if (!res.ok) {
@@ -290,7 +345,7 @@ export async function pushDesksToGist(
     body: JSON.stringify({
       description: "OpenCTO desk backup (private)",
       public: false,
-      files: { [GIST_FILENAME]: { content } },
+      files,
     }),
   });
   if (!created.ok) return { ok: false, error: created.error };
