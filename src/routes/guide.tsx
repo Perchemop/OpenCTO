@@ -37,6 +37,17 @@ function Guide() {
           <li>Download the workspace zip from Headquarters if you want the files offline.</li>
         </ol>
 
+        <h2 className="mt-10 font-serif text-3xl">On your phone</h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted">
+          Open <a className="text-fg underline decoration-line underline-offset-2" href="https://perchemop.github.io/OpenCTO/">perchemop.github.io/OpenCTO</a> in Safari or Chrome.
+          Use <strong className="font-medium text-fg">Add to Home Screen</strong> so the desk opens full-screen like an app.
+          Work stays in that browser profile — same local storage, still no account.
+        </p>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-relaxed text-muted">
+          <li>iPhone / iPad: Share → Add to Home Screen</li>
+          <li>Android Chrome: Menu → Install app or Add to Home screen</li>
+        </ul>
+
         <h2 className="mt-10 font-serif text-3xl">Several businesses</h2>
         <p className="mt-3 text-sm leading-relaxed text-muted">
           Starting another brief keeps the previous desk. Switch from the menu under the name, or from the search
@@ -74,6 +85,9 @@ JSON`}</pre>
         </p>
 
         <h2 className="mt-10 font-serif text-3xl">Rebuild the browser engine</h2>
+        <p className="mt-3 text-sm leading-relaxed text-muted">
+          GitHub Actions rebuilds the WASM on every Pages deploy. To do it yourself:
+        </p>
         <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface p-4 text-xs leading-relaxed text-fg">{`rustup target add wasm32-unknown-unknown
 cargo build --manifest-path engine/Cargo.toml --target wasm32-unknown-unknown --release --lib
 cp engine/target/wasm32-unknown-unknown/release/opencto.wasm public/engine/opencto.wasm`}</pre>
