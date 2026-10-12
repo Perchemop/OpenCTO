@@ -38,6 +38,12 @@ function Home() {
     setDraft(pick.brief);
   }
 
+  function usePrompt(pick: (typeof PROMPTS)[number]) {
+    setTeam(pick.team);
+    setModel(pick.model);
+    setDraft(pick.brief);
+  }
+
   return (
     <div className="min-h-dvh bg-bg text-fg">
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
@@ -148,9 +154,22 @@ function Home() {
           {error ? <p className="px-2 pt-3 text-sm text-accent">{error}</p> : null}
         </form>
 
+        <div className="mt-3 flex flex-wrap gap-2">
+          {PROMPTS.map((pick) => (
+            <button
+              key={pick.brief}
+              type="button"
+              onClick={() => usePrompt(pick)}
+              className="max-w-full truncate rounded-full border border-line px-3 py-2 text-left text-xs text-muted hover:text-fg"
+            >
+              {pick.brief}
+            </button>
+          ))}
+        </div>
+
         <p className="mt-3 text-xs text-muted">
-          Tip: desks are saved in this browser. Download a workspace zip from Headquarters when you want a
-          backup.
+          Tip: desks are saved in this browser. On a phone, use Add to Home Screen. Download a workspace zip from
+          Headquarters when you want a backup.
         </p>
 
         <section className="mt-14">
