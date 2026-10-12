@@ -2,7 +2,7 @@
 
 A free, open-source headquarters for an AI team. You describe the work. A lead staffs a small desk, writes a plan and files, and stops at an approval. Keep more than one business, hire a named person, reject with a reason, and download the workspace.
 
-**No account. No API key. Nothing to configure.** The planner is Rust, running in the browser as WebAssembly (or as a CLI). Work stays on this device until you export a zip.
+**Local-first by default.** No account required. The planner is Rust WebAssembly in the browser. Work stays on this device until you export a zip — or optionally sync desks to a **private GitHub gist**.
 
 OpenCTO is an independent reimplementation of the public [cto.new](https://cto.new) workflow (lead chat, employees, tasks, plan, preview, approvals). It is not affiliated with cto.new or Engine Labs.
 
@@ -15,6 +15,17 @@ OpenCTO is an independent reimplementation of the public [cto.new](https://cto.n
 1. Open the link in Safari (iPhone) or Chrome (Android)
 2. **Add to Home Screen** / **Install app**
 3. Type a brief or tap an example chip → **Start the team**
+
+### Optional GitHub sync
+
+1. Create a GitHub **OAuth App** (Developer settings) and enable **Device Flow**
+2. Copy only the public **Client ID** (no client secret)
+3. In the app: **Headquarters → Settings → GitHub sync** → paste Client ID → **Connect GitHub**
+4. Enter the one-time code on GitHub, then **Push desks** / **Pull desks**
+
+Desks are stored as a private gist (`opencto-desks.json`). The OAuth token stays in this browser with the `gist` scope only. The planner still does not need model API keys.
+
+You can also set `VITE_GITHUB_CLIENT_ID` at build time so users skip pasting the Client ID.
 
 ### One-time Pages setup (repo owner)
 
