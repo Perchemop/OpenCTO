@@ -1,28 +1,27 @@
 # OpenCTO
 
-A free, open-source headquarters for an AI team. You describe the work. A lead staffs a small desk, writes a plan and files, and stops at an approval. You can keep more than one business, hire a named person, reject with a reason, and download the workspace. The orchestrator is Rust. The desk runs in the browser via WebAssembly, or as a CLI. No account. No API key. No paid model.
+A free, open-source headquarters for an AI team. You describe the work. A lead staffs a small desk, writes a plan and files, and stops at an approval. Keep more than one business, hire a named person, reject with a reason, and download the workspace.
+
+**No account. No API key. Nothing to configure.** The planner is Rust, running in the browser as WebAssembly (or as a CLI). Work stays on this device until you export a zip.
 
 OpenCTO is an independent reimplementation of the public [cto.new](https://cto.new) workflow (lead chat, employees, tasks, plan, preview, approvals). It is not affiliated with cto.new or Engine Labs.
 
-## Live on GitHub Pages (free)
-
-After the first successful Actions run the app is available at:
+## Live (free)
 
 **https://perchemop.github.io/OpenCTO/**
 
-### One-time setup (do this once)
+### Phone
 
-1. Open the repository on GitHub → **Settings** → **Pages**
-2. Under **Build and deployment** → **Source**, choose **GitHub Actions**
-3. Push to `main` (or run the workflow manually under the **Actions** tab)
+1. Open the link in Safari (iPhone) or Chrome (Android)
+2. **Add to Home Screen** / **Install app**
+3. Type a brief or tap an example chip → **Start the team**
 
-The workflow builds a pure static SPA and deploys it. Subsequent pushes to `main` update the site automatically.
+### One-time Pages setup (repo owner)
 
-### Use from your phone
+1. GitHub → **Settings** → **Pages** → **Source**: **GitHub Actions**
+2. Push to `main` (or run **Deploy to GitHub Pages** under Actions)
 
-1. Open https://perchemop.github.io/OpenCTO/ in Safari (iPhone) or Chrome (Android)
-2. Tap **Share** → **Add to Home Screen** (iOS) or the install banner / menu → **Install app** (Android)
-3. The desk now works like a native app. After the first load the Rust engine stays in the browser cache and works offline.
+Every push to `main` rebuilds the WASM engine and redeploys the static SPA.
 
 ## Run locally
 
@@ -31,9 +30,9 @@ npm install
 npm run dev
 ```
 
-The app serves the headquarters and loads `public/engine/opencto.wasm`.
+Loads `public/engine/opencto.wasm` for the desk.
 
-## Run only the engine
+## Engine only
 
 See [engine/README.md](engine/README.md).
 
