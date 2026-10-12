@@ -6,8 +6,17 @@ export type Section =
   | "tasks"
   | "files"
   | "inbox"
-  | "runway"
-  | "settings";
+  | "settings"
+  | "runway";
+
+export type Business = {
+  name: string;
+  tagline: string;
+  status: string;
+  model: string;
+  kind: string;
+  brief: string;
+};
 
 export type Service = { title: string; body: string };
 
@@ -33,23 +42,41 @@ export type Employee = {
   name: string;
   role: string;
   model: string;
-  specialty: string;
+  focus: string;
   lead: boolean;
 };
 
-export type TaskMove = { step: number; column: string };
+export type Move = { step: number; column: string };
 
 export type Task = {
   id: string;
   title: string;
   detail: string;
   owner: string;
-  moves: TaskMove[];
-  path: string;
+  column: string;
+  moves: Move[];
+  artifact: string;
 };
 
-export type FileEntry = {
+export type Message = {
+  id: string;
+  from: string;
+  role: string;
+  body: string;
+  at_step: number;
+};
+
+export type LogEvent = {
+  step: number;
+  actor: string;
+  kind: string;
+  text: string;
+  task_id: string;
+};
+
+export type FileNode = {
   path: string;
+  language: string;
   content: string;
   reveal_step: number;
 };
@@ -58,65 +85,62 @@ export type Approval = {
   id: string;
   title: string;
   detail: string;
+  risk: string;
+  reveal_step: number;
   status: string;
+};
+
+export type PlanSection = { heading: string; body: string };
+
+export type Note = {
+  id: string;
+  title: string;
+  body: string;
+  kind: string;
   reveal_step: number;
 };
 
-export type LogEvent = {
-  step: number;
-  actor: string;
-  kind: string;
-  text: string;
-};
-
-export type Message = {
-  id: string;
-  author: string;
-  role: string;
-  body: string;
-  at_step: number;
-};
-
-export type PlanSection = {
-  heading: string;
-  body: string;
-};
-
-export type McpFlag = {
-  id: string;
-  label: string;
-  detail: string;
-  enabled: boolean;
-};
+export type McpFlag = { id: string; label: string; detail: string; enabled: boolean };
+export type Secret = { key: string; value: string };
 
 export type Settings = {
   repo: string;
   webhook: string;
   schedule: string;
+  require_approval: boolean;
   mcp: McpFlag[];
-};
-
-export type Business = {
-  name: string;
-  tagline: string;
-  model: string;
-  kind: string;
-  brief: string;
-  status: string;
+  secrets: Secret[];
 };
 
 export type Snapshot = {
+  version: number;
+  runs: number;
   business: Business;
   seed: Seed;
   team: Employee[];
   tasks: Task[];
-  files: FileEntry[];
-  approvals: Approval[];
-  log: LogEvent[];
   messages: Message[];
+  log: LogEvent[];
+  files: FileNode[];
+  approvals: Approval[];
   plan: PlanSection[];
+  inbox: Note[];
   site_html: string;
+  published: boolean;
   settings: Settings;
+};
+
+export type EngineResponse = {
+  ok: boolean;
+  error?: string;
+  snapshot?: Snapshot;
+  play_from: number;
+  catalog?: {
+    version: string;
+    models: { id: string; name: string; detail: string }[];
+    teams: { id: string; name: string; detail: string; roles: string[] }[];
+    prompts: { team: string; model: string; brief: string }[];
+  };
 };
 
 export const TEAMS = [
@@ -141,24 +165,24 @@ export const TEAMS = [
   {
     id: "marketing",
     name: "Marketing atelier",
-    detail: "Positioning, a two-week calendar, and captions you can post.",
+    detail: "Positioning, a two-week calendar, and captions you could post.",
     roles: "3 people",
   },
   {
     id: "research",
     name: "Research bench",
-    detail: "Lead and writer. A decision memo, not a fake launch.",
+    detail: "A decision memo when the brief is still a question.",
     roles: "2 people",
   },
 ] as const;
 
 export const MODELS = [
-  { id: "local", name: "Local", detail: "Deterministic WASM planner in this browser." },
-  { id: "alloy", name: "Alloy", detail: "Structured + expressive pass, still local." },
-  { id: "kimi", name: "Kimi profile", detail: "Research-heavy framing for fuzzy briefs." },
-  { id: "qwen", name: "Qwen profile", detail: "Shorter sentences, fewer flourishes." },
-  { id: "deepseek", name: "DeepSeek profile", detail: "Diagnosis-first tone." },
-  { id: "devstral", name: "Devstral profile", detail: "Engineering bias for bugfix desks." },
+  { id: "local", name: "Local planner", detail: "Deterministic. No network." },
+  { id: "alloy", name: "Local alloy", detail: "Structured pass, then expressive, merged." },
+  { id: "qwen", name: "Qwen profile", detail: "Tighter copy. Pair with Ollama later." },
+  { id: "devstral", name: "Devstral profile", detail: "Code-first, with an extra check." },
+  { id: "deepseek", name: "DeepSeek profile", detail: "Longer diagnosis before edits." },
+  { id: "kimi", name: "Kimi profile", detail: "Research-heavy when the brief is fuzzy." },
 ] as const;
 
 export const PROMPTS = [
