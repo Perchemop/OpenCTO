@@ -31,6 +31,8 @@ type OpenCtoState = {
   fire: (employeeId: string) => Promise<void>;
   switchDesk: (id: string) => void;
   renameDesk: (id: string, name: string) => void;
+  /** Replace local desks with a cloud backup (merge by id, remote wins). */
+  importDesks: (incoming: DeskRecord[], preferredActiveId?: string | null) => void;
   advance: () => void;
   finishPlayback: () => void;
   setPlaying: (playing: boolean) => void;
@@ -314,6 +316,45 @@ export const useOpenCto = create<OpenCtoState>()(
           return;
         }
         set({ desks, snapshot: active?.snapshot ?? current.snapshot });
+      },
+      importDesks(incoming, preferredActiveId) {
+        if (!incoming.length) return;
+        const current = get();
+        // Flush active desk into the list first
+        let desks = current.desks;
+        if (current.snapshot && current.activeId) {
+          desks = upsert(desks, {
+            id: current.activeId,
+            snapshot: current.snapshot,
+            step: current.step,
+            section: current.section,
+          });
+        }
+        for (const record of incoming) {
+          if (!record?.id || !record.snapshot) continue;
+          desks = upsert(desks, {
+            id: record.id,
+            snapshot: record.snapshot,
+            step: record.step ?? 0,
+            section: record.section ?? "lead",
+          });
+        }
+        const activeId =
+          (preferredActiveId && desks.some((d) => d.id === preferredActiveId) && preferredActiveId) ||
+          current.activeId ||
+          desks[0]?.id ||
+          null;
+        const active = desks.find((d) => d.id === activeId) ?? desks[0];
+        if (!active) return;
+        set({
+          desks,
+          activeId: active.id,
+          snapshot: active.snapshot,
+          step: active.step,
+          section: active.section,
+          playing: false,
+          error: null,
+        });
       },
       advance() {
         const len = get().snapshot?.log.length ?? 0;
