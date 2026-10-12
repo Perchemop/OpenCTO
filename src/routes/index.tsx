@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowUp, Shuffle } from "lucide-react";
+import { InstallPrompt } from "@/components/opencto/install-prompt";
 import { Mark } from "@/components/opencto/mark";
 import { MODELS, PROMPTS, TEAMS } from "@/lib/opencto/types";
 import { useOpenCto } from "@/lib/opencto/store";
@@ -238,6 +239,7 @@ function Home() {
           </p>
         </section>
       </main>
+      <InstallPrompt />
     </div>
   );
 }
