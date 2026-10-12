@@ -3,11 +3,13 @@ import { Activity } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   clearSession,
+  getAutoPush,
   getClientId,
   loadSession,
   pollDeviceToken,
   pullDesksFromGist,
   pushDesksToGist,
+  setAutoPush,
   setClientId,
   startDeviceFlow,
   type GitHubSession,
@@ -61,6 +63,7 @@ function GitHubSync() {
   const importDesks = useOpenCto((s) => s.importDesks);
   const [session, setSession] = useState<GitHubSession | null>(() => loadSession());
   const [clientId, setClientIdInput] = useState(() => getClientId());
+  const [autoPush, setAutoPushState] = useState(() => getAutoPush());
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -150,6 +153,12 @@ function GitHubSync() {
     setStatus(`Pulled ${res.payload.desks.length} desk(s) from GitHub`);
   }
 
+  function toggleAuto() {
+    const next = !autoPush;
+    setAutoPush(next);
+    setAutoPushState(next);
+  }
+
   return (
     <section className="space-y-3 rounded-lg border border-line bg-surface p-4">
       <h3 className="font-medium">GitHub sync</h3>
@@ -228,6 +237,14 @@ function GitHubSync() {
               Disconnect
             </button>
           </div>
+          <button
+            type="button"
+            aria-pressed={autoPush}
+            onClick={toggleAuto}
+            className={`inline-flex min-h-11 items-center rounded-full px-3 text-sm ${autoPush ? "bg-accent text-ink" : "border border-line text-muted"}`}
+          >
+            Auto-push after approve: {autoPush ? "On" : "Off"}
+          </button>
         </>
       )}
 
