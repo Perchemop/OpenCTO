@@ -1,4 +1,4 @@
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, MessageSquare, Users } from "lucide-react";
 import { useState } from "react";
 import { suggestions } from "@/lib/opencto/suggest";
 import { useOpenCto } from "@/lib/opencto/store";
@@ -37,26 +37,38 @@ export function Lead({ snapshot, step }: { snapshot: Snapshot; step: number }) {
   return (
     <div className="mx-auto grid w-full max-w-5xl gap-4 px-3 py-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <section className="flex min-w-0 flex-col gap-3">
-        <ul className="flex flex-col gap-3">
-          {timeline.map((item) =>
-            item.kind === "message" ? (
-              <li
-                key={item.key}
-                className={`max-w-prose rounded-lg px-4 py-3 text-sm leading-relaxed ${item.message.role === "user" ? "ml-auto bg-accent text-ink" : "mr-auto border border-line bg-surface text-fg"}`}
-              >
-                <p className="mb-1 text-xs tracking-wide uppercase opacity-70">{item.message.from}</p>
-                {item.message.body}
-              </li>
-            ) : (
-              <li key={item.key} className="mr-auto max-w-prose rounded-lg border border-line px-3 py-2 text-sm">
-                <p className="text-xs tracking-wide text-accent uppercase">
-                  {item.event.actor} · {item.event.kind}
-                </p>
-                <p className="mt-1 leading-relaxed">{item.event.text}</p>
-              </li>
-            ),
-          )}
-        </ul>
+        {timeline.length === 0 ? (
+          <div className="grid min-h-48 place-items-center rounded-lg border border-dashed border-line px-4 py-8 text-center">
+            <div>
+              <MessageSquare className="mx-auto size-8 text-muted" aria-hidden />
+              <p className="mt-3 font-medium text-fg">Lead chat is quiet</p>
+              <p className="mt-1 text-sm text-muted">
+                Play the work log, or send a note — pricing, a hire, a rename, or a pause.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {timeline.map((item) =>
+              item.kind === "message" ? (
+                <li
+                  key={item.key}
+                  className={`max-w-prose rounded-lg px-4 py-3 text-sm leading-relaxed ${item.message.role === "user" ? "ml-auto bg-accent text-ink" : "mr-auto border border-line bg-surface text-fg"}`}
+                >
+                  <p className="mb-1 text-xs tracking-wide uppercase opacity-70">{item.message.from}</p>
+                  {item.message.body}
+                </li>
+              ) : (
+                <li key={item.key} className="mr-auto max-w-prose rounded-lg border border-line px-3 py-2 text-sm">
+                  <p className="text-xs tracking-wide text-accent uppercase">
+                    {item.event.actor} · {item.event.kind}
+                  </p>
+                  <p className="mt-1 leading-relaxed">{item.event.text}</p>
+                </li>
+              ),
+            )}
+          </ul>
+        )}
         <div className="flex flex-wrap gap-2">
           {ideas.map((idea) => (
             <button
@@ -145,8 +157,17 @@ export function Team({ snapshot, step }: { snapshot: Snapshot; step: number }) {
           <PersonCard person={lead} working={working.has(lead.id)} busy={busy} />
           {reports.length > 0 ? <div className="mx-auto h-6 w-px bg-line" aria-hidden /> : null}
         </div>
+      ) : (
+        <div className="mt-6 grid place-items-center rounded-lg border border-dashed border-line px-4 py-10 text-center">
+          <Users className="size-8 text-muted" aria-hidden />
+          <p className="mt-3 font-medium">No one on the desk yet</p>
+          <p className="mt-1 text-sm text-muted">Hire a person or an entire desk below.</p>
+        </div>
+      )}
+      {reports.length === 0 && lead ? (
+        <p className="mt-4 text-center text-sm text-muted">Only the lead so far. Hire specialists below.</p>
       ) : null}
-      <ul className="grid gap-3 sm:grid-cols-2">
+      <ul className="mt-2 grid gap-3 sm:grid-cols-2">
         {reports.map((person) => (
           <li key={person.id}>
             <PersonCard
@@ -241,8 +262,8 @@ export function LocalTip() {
   return (
     <div className="flex flex-col gap-2 border-b border-line bg-surface px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
       <p className="text-sm text-muted">
-        This desk is saved in <span className="text-fg">this browser only</span>. Download a workspace zip from
-        commands (⌘K) when you want a backup. No account, no keys.
+        Saved in <span className="text-fg">this browser only</span>. On a phone, Add to Home Screen. Download a
+        workspace zip from commands (⌘K / Ctrl+K) when you want a backup. No account, no keys.
       </p>
       <button
         type="button"
