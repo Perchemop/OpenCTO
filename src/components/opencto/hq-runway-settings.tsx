@@ -1,5 +1,17 @@
 import { Link } from "@tanstack/react-router";
 import { Activity } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  clearSession,
+  getClientId,
+  loadSession,
+  pollDeviceToken,
+  pullDesksFromGist,
+  pushDesksToGist,
+  setClientId,
+  startDeviceFlow,
+  type GitHubSession,
+} from "@/lib/opencto/github";
 import { useOpenCto } from "@/lib/opencto/store";
 import { type Snapshot } from "@/lib/opencto/types";
 
@@ -40,6 +52,191 @@ export function Runway({ snapshot, step }: { snapshot: Snapshot; step: number })
   );
 }
 
+function GitHubSync() {
+  const desks = useOpenCto((s) => s.desks);
+  const activeId = useOpenCto((s) => s.activeId);
+  const snapshot = useOpenCto((s) => s.snapshot);
+  const step = useOpenCto((s) => s.step);
+  const section = useOpenCto((s) => s.section);
+  const importDesks = useOpenCto((s) => s.importDesks);
+  const [session, setSession] = useState<GitHubSession | null>(() => loadSession());
+  const [clientId, setClientIdInput] = useState(() => getClientId());
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [userCode, setUserCode] = useState<string | null>(null);
+  const [verifyUrl, setVerifyUrl] = useState("https://github.com/login/device");
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  function currentDesks() {
+    let list = desks.slice();
+    if (snapshot && activeId) {
+      const idx = list.findIndex((d) => d.id === activeId);
+      const record = { id: activeId, snapshot, step, section };
+      if (idx < 0) list = [...list, record];
+      else list = list.map((d, i) => (i === idx ? record : d));
+    }
+    return list;
+  }
+
+  async function connect() {
+    setError(null);
+    setStatus(null);
+    setClientId(clientId);
+    setBusy(true);
+    const started = await startDeviceFlow(clientId.trim());
+    if (!started.ok) {
+      setError(started.error);
+      setBusy(false);
+      return;
+    }
+    setUserCode(started.start.user_code);
+    setVerifyUrl(started.start.verification_uri || "https://github.com/login/device");
+    setStatus("Open GitHub and enter the code…");
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const result = await pollDeviceToken(
+      started.start.device_code,
+      started.start.interval || 5,
+      clientId.trim(),
+      ac.signal,
+    );
+    setBusy(false);
+    setUserCode(null);
+    if (!result.ok) {
+      setError(result.error);
+      setStatus(null);
+      return;
+    }
+    setSession(result.session);
+    setStatus(`Connected as @${result.session.user.login}`);
+  }
+
+  function disconnect() {
+    abortRef.current?.abort();
+    clearSession();
+    setSession(null);
+    setStatus("Disconnected");
+    setError(null);
+    setUserCode(null);
+  }
+
+  async function push() {
+    setBusy(true);
+    setError(null);
+    const res = await pushDesksToGist(currentDesks(), activeId);
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setSession(loadSession());
+    setStatus(res.htmlUrl ? `Pushed to private gist` : "Pushed");
+  }
+
+  async function pull() {
+    setBusy(true);
+    setError(null);
+    const res = await pullDesksFromGist();
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    importDesks(res.payload.desks, res.payload.activeId);
+    setStatus(`Pulled ${res.payload.desks.length} desk(s) from GitHub`);
+  }
+
+  return (
+    <section className="space-y-3 rounded-lg border border-line bg-surface p-4">
+      <h3 className="font-medium">GitHub sync</h3>
+      <p className="text-sm leading-relaxed text-muted">
+        Optional. Connect with GitHub Device Flow (no password pasted here). Desks back up to a{" "}
+        <span className="text-fg">private gist</span> on your account. Local storage still works offline.
+      </p>
+
+      {!session ? (
+        <>
+          <label className="block text-sm">
+            OAuth App Client ID
+            <input
+              value={clientId}
+              onChange={(event) => setClientIdInput(event.target.value)}
+              placeholder="Ov23… (public Client ID only)"
+              className="mt-2 min-h-11 w-full rounded-lg border border-line bg-bg px-3 text-fg outline-none"
+            />
+          </label>
+          <p className="text-xs leading-relaxed text-muted">
+            Create a GitHub OAuth App → enable <span className="text-fg">Device Flow</span> → copy the Client ID.
+            Callback URL can be <code className="text-fg">http://localhost</code>. No client secret is used.
+          </p>
+          <button
+            type="button"
+            disabled={busy || clientId.trim().length < 8}
+            onClick={() => void connect()}
+            className="inline-flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-medium text-ink disabled:opacity-50"
+          >
+            {busy ? "Waiting for GitHub…" : "Connect GitHub"}
+          </button>
+          {userCode ? (
+            <p className="rounded-lg border border-line bg-bg px-3 py-3 text-sm">
+              Enter code{" "}
+              <span className="font-mono text-lg tracking-widest text-accent">{userCode}</span> at{" "}
+              <a className="text-fg underline" href={verifyUrl} target="_blank" rel="noreferrer">
+                {verifyUrl.replace(/^https?:\/\//, "")}
+              </a>
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <p className="text-sm">
+            Signed in as{" "}
+            <span className="font-medium text-fg">@{session.user.login}</span>
+            {session.gistId ? (
+              <span className="text-muted"> · gist linked</span>
+            ) : (
+              <span className="text-muted"> · no gist yet</span>
+            )}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void push()}
+              className="inline-flex min-h-11 items-center rounded-full bg-accent px-4 text-sm font-medium text-ink disabled:opacity-50"
+            >
+              Push desks
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void pull()}
+              className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm disabled:opacity-50"
+            >
+              Pull desks
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={disconnect}
+              className="inline-flex min-h-11 items-center text-sm text-muted"
+            >
+              Disconnect
+            </button>
+          </div>
+        </>
+      )}
+
+      {status ? <p className="text-sm text-fg">{status}</p> : null}
+      {error ? <p className="text-sm text-accent">{error}</p> : null}
+    </section>
+  );
+}
+
 export function SettingsView({ snapshot }: { snapshot: Snapshot }) {
   const patchSettings = useOpenCto((s) => s.patchSettings);
   const toggleMcp = useOpenCto((s) => s.toggleMcp);
@@ -50,9 +247,12 @@ export function SettingsView({ snapshot }: { snapshot: Snapshot }) {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
       <h2 className="font-serif text-3xl">Settings</h2>
       <p className="rounded-lg border border-line bg-surface px-3 py-3 text-sm leading-relaxed text-muted">
-        Local only. Labels below are notes for this desk — they are not connected to a remote service from this
-        browser.
+        Local-first by default. GitHub sync is optional and uses a private gist on your account — never required to
+        run a desk.
       </p>
+
+      <GitHubSync />
+
       <label className="block text-sm">
         Repo label
         <input
@@ -105,12 +305,8 @@ export function SettingsView({ snapshot }: { snapshot: Snapshot }) {
         </ul>
       </section>
       <p className="text-sm leading-relaxed text-muted">
-        OpenCTO is local-first: no account and no API keys. Secrets are not collected here. When you self-host the
-        CLI, put credentials in that machine's environment — not in this browser desk.
-      </p>
-      <p className="text-sm leading-relaxed text-muted">
-        Businesses on this device are stored in browser storage. Clear this desk removes only the active business;
-        clearing site data for this origin removes all of them.
+        Secrets are not collected for the planner. The GitHub token from Device Flow stays in this browser only and is
+        limited to the <code className="text-fg">gist</code> scope.
       </p>
       <div className="flex flex-wrap gap-3">
         <Link to="/guide" className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm">
