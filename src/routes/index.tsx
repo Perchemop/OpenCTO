@@ -8,6 +8,17 @@ import { useOpenCto } from "@/lib/opencto/store";
 
 export const Route = createFileRoute("/")({ component: Home });
 
+/** Pick a desk type from the brief so sticky Marketing does not swallow a website ask. */
+function suggestTeam(brief: string): string {
+  const b = brief.toLowerCase();
+  if (/\b(bug|fix|flaky|timeout|regression|broken)\b/.test(b)) return "bugfix";
+  if (/\b(content calendar|campaign|caption|instagram|tiktok)\b/.test(b)) return "marketing";
+  if (/\b(should we|research memo|decision memo)\b/.test(b)) return "research";
+  if (/\b(site|website|landing|homepage|dashboard|tracker|tracking|weather|app)\b/.test(b)) return "website";
+  if (/\b(api|rust|module|export|billing|ledger)\b/.test(b)) return "engineering";
+  return "website";
+}
+
 function Home() {
   const navigate = useNavigate();
   const draft = useOpenCto((s) => s.draft);
@@ -21,11 +32,19 @@ function Home() {
   const error = useOpenCto((s) => s.error);
   const hasDesk = useOpenCto((s) => Boolean(s.snapshot));
   const [ready, setReady] = useState(false);
+  const [teamLocked, setTeamLocked] = useState(false);
 
   useEffect(() => {
     void useOpenCto.persist.rehydrate();
     setReady(true);
   }, []);
+
+  // When the brief clearly names a kind of work, switch the desk unless the user picked one.
+  useEffect(() => {
+    if (teamLocked) return;
+    const next = suggestTeam(draft);
+    if (next !== team) setTeam(next);
+  }, [draft, team, teamLocked, setTeam]);
 
   async function start(brief: string) {
     const ok = await launch(brief);
@@ -34,12 +53,14 @@ function Home() {
 
   function surprise() {
     const pick = PROMPTS[Math.floor(Math.random() * PROMPTS.length)];
+    setTeamLocked(true);
     setTeam(pick.team);
     setModel(pick.model);
     setDraft(pick.brief);
   }
 
   function usePrompt(pick: (typeof PROMPTS)[number]) {
+    setTeamLocked(true);
     setTeam(pick.team);
     setModel(pick.model);
     setDraft(pick.brief);
@@ -71,8 +92,8 @@ function Home() {
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
           Open a desk in this browser. A Rust planner runs as WebAssembly — lead, team, plan, tasks, and a
-          preview you approve. No signup. No API key. Nothing to configure. Your work stays on this device
-          until you download a zip.
+          preview you approve. Write what you want; the desk type follows the brief (you can still override it).
+          No signup. No API key. Work stays on this device until you download a zip or sync a private gist.
         </p>
 
         <form
@@ -97,7 +118,7 @@ function Home() {
                 void start(draft);
               }
             }}
-            placeholder="A booking site for a Lisbon ceramic studio called Barro"
+            placeholder="A weather tracking website called Clear Horizon"
             className="w-full resize-none bg-transparent px-2 py-2 text-base text-fg outline-none placeholder:text-muted"
           />
           <div className="mt-2 flex flex-col gap-3 border-t border-line pt-3 sm:flex-row sm:items-center sm:justify-between">
@@ -108,7 +129,10 @@ function Home() {
               <select
                 id="team"
                 value={team}
-                onChange={(event) => setTeam(event.target.value)}
+                onChange={(event) => {
+                  setTeamLocked(true);
+                  setTeam(event.target.value);
+                }}
                 className="min-h-11 rounded-full border border-line bg-bg px-3 text-sm text-fg"
               >
                 {TEAMS.map((item) => (
@@ -132,114 +156,47 @@ function Home() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={surprise}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-sm text-fg"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-3 text-sm text-muted"
               >
                 <Shuffle className="size-4" aria-hidden />
-                Surprise me
-              </button>
-              <button
-                type="submit"
-                disabled={busy || draft.trim().length === 0}
-                className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-ink disabled:opacity-50"
-              >
-                <ArrowUp className="size-4" aria-hidden />
-                {busy ? "Starting" : "Start the team"}
+                Surprise
               </button>
             </div>
+            <button
+              type="submit"
+              disabled={busy || draft.trim().length < 3}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-4 text-sm font-medium text-ink disabled:opacity-50"
+            >
+              Start the team
+              <ArrowUp className="size-4" aria-hidden />
+            </button>
           </div>
-          {error ? <p className="px-2 pt-3 text-sm text-accent">{error}</p> : null}
+          {error ? <p className="mt-3 text-sm text-accent">{error}</p> : null}
         </form>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {PROMPTS.map((pick) => (
-            <button
-              key={pick.brief}
-              type="button"
-              onClick={() => usePrompt(pick)}
-              className="max-w-full truncate rounded-full border border-line px-3 py-2 text-left text-xs text-muted hover:text-fg"
-            >
-              {pick.brief}
-            </button>
-          ))}
-        </div>
-
-        <p className="mt-3 text-xs text-muted">
-          Tip: desks are saved in this browser. On a phone, use Add to Home Screen. Download a workspace zip from
-          Headquarters when you want a backup.
-        </p>
-
-        <section className="mt-14">
-          <div className="flex items-end justify-between gap-4">
-            <h2 className="font-serif text-3xl font-medium">Hire a desk</h2>
-            <p className="hidden text-sm text-muted sm:block">Same people, every run. No marketplace fee.</p>
-          </div>
-          <ul className="mt-4 divide-y divide-line border-y border-line">
-            {TEAMS.map((item) => (
-              <li key={item.id}>
+        <section className="mt-10">
+          <h2 className="font-serif text-2xl">Try a brief</h2>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {PROMPTS.map((pick) => (
+              <li key={pick.brief}>
                 <button
                   type="button"
-                  onClick={() => setTeam(item.id)}
-                  className={`flex w-full flex-col gap-1 px-1 py-4 text-left sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 ${team === item.id ? "text-fg" : "text-muted"}`}
+                  onClick={() => usePrompt(pick)}
+                  className="w-full rounded-lg border border-line bg-surface px-4 py-3 text-left text-sm leading-relaxed hover:border-accent"
                 >
-                  <span className="font-serif text-2xl text-fg">{item.name}</span>
-                  <span className="max-w-xl text-sm leading-relaxed">{item.detail}</span>
-                  <span className="text-xs tracking-wide text-accent uppercase">{item.roles}</span>
+                  <span className="block text-xs tracking-wide text-muted uppercase">{pick.team} · {pick.model}</span>
+                  <span className="mt-1 block text-fg">{pick.brief}</span>
                 </button>
               </li>
             ))}
           </ul>
         </section>
 
-        <section className="mt-14 grid gap-8 sm:grid-cols-3">
-          <article>
-            <h2 className="font-serif text-2xl">Open and use</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              No account, no keys, no setup. Type a brief and start. The planner runs entirely in this browser.
-            </p>
-          </article>
-          <article>
-            <h2 className="font-serif text-2xl">A gate, not a deploy</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              The team stops before publish or merge. Approving marks the draft done here. Nothing is pushed.
-            </p>
-          </article>
-          <article>
-            <h2 className="font-serif text-2xl">Stays on this device</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              Businesses live in local storage on this browser. Export a zip anytime. Clear data only when you
-              choose.
-            </p>
-          </article>
-        </section>
-
-        <section className="mt-14">
-          <h2 className="font-serif text-3xl font-medium">What it keeps from the hosted product</h2>
-          <dl className="mt-4 grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2">
-            {[
-              ["Lead chat", "The person you talk to. They hire, file work, and hold the gate."],
-              ["Employees", "Named roles with a model profile and a focus. Fire anyone but the lead."],
-              ["Tasks", "A kanban that moves while the run plays out."],
-              ["Site preview", "A real HTML draft, not a screenshot."],
-              ["Plan", "What was heard, the offer, the stack, the risks."],
-              ["Approvals", "Publish and merge wait until you say so."],
-            ].map(([term, detail]) => (
-              <div key={term} className="bg-bg p-4">
-                <dt className="font-medium text-fg">{term}</dt>
-                <dd className="mt-1 text-sm leading-relaxed text-muted">{detail}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-4 text-sm text-muted">
-            OpenCTO is an independent reimplementation of that public workflow. It is not affiliated with cto.new or Engine Labs.
-          </p>
-        </section>
+        <InstallPrompt />
       </main>
-      <InstallPrompt />
     </div>
   );
 }
