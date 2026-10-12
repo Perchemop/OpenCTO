@@ -5,12 +5,14 @@ import {
   clearSession,
   getAutoPush,
   getClientId,
+  getPullOnOpen,
   loadSession,
   pollDeviceToken,
   pullDesksFromGist,
   pushDesksToGist,
   setAutoPush,
   setClientId,
+  setPullOnOpen,
   startDeviceFlow,
   type GitHubSession,
 } from "@/lib/opencto/github";
@@ -64,6 +66,7 @@ function GitHubSync() {
   const [session, setSession] = useState<GitHubSession | null>(() => loadSession());
   const [clientId, setClientIdInput] = useState(() => getClientId());
   const [autoPush, setAutoPushState] = useState(() => getAutoPush());
+  const [pullOnOpen, setPullOnOpenState] = useState(() => getPullOnOpen());
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -137,7 +140,11 @@ function GitHubSync() {
       return;
     }
     setSession(loadSession());
-    setStatus(res.htmlUrl ? `Pushed to private gist` : "Pushed");
+    setStatus(
+      res.htmlUrl
+        ? "Pushed desks + site/plan files to private gist"
+        : "Pushed",
+    );
   }
 
   async function pull() {
@@ -153,18 +160,13 @@ function GitHubSync() {
     setStatus(`Pulled ${res.payload.desks.length} desk(s) from GitHub`);
   }
 
-  function toggleAuto() {
-    const next = !autoPush;
-    setAutoPush(next);
-    setAutoPushState(next);
-  }
-
   return (
     <section className="space-y-3 rounded-lg border border-line bg-surface p-4">
       <h3 className="font-medium">GitHub sync</h3>
       <p className="text-sm leading-relaxed text-muted">
         Optional. Connect with GitHub Device Flow (no password pasted here). Desks back up to a{" "}
-        <span className="text-fg">private gist</span> on your account. Local storage still works offline.
+        <span className="text-fg">private gist</span> on your account (JSON + site HTML + plan markdown for the
+        active desk). Local storage still works offline.
       </p>
 
       {!session ? (
@@ -237,14 +239,32 @@ function GitHubSync() {
               Disconnect
             </button>
           </div>
-          <button
-            type="button"
-            aria-pressed={autoPush}
-            onClick={toggleAuto}
-            className={`inline-flex min-h-11 items-center rounded-full px-3 text-sm ${autoPush ? "bg-accent text-ink" : "border border-line text-muted"}`}
-          >
-            Auto-push after approve: {autoPush ? "On" : "Off"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-pressed={autoPush}
+              onClick={() => {
+                const next = !autoPush;
+                setAutoPush(next);
+                setAutoPushState(next);
+              }}
+              className={`inline-flex min-h-11 items-center rounded-full px-3 text-sm ${autoPush ? "bg-accent text-ink" : "border border-line text-muted"}`}
+            >
+              Auto-push after approve: {autoPush ? "On" : "Off"}
+            </button>
+            <button
+              type="button"
+              aria-pressed={pullOnOpen}
+              onClick={() => {
+                const next = !pullOnOpen;
+                setPullOnOpen(next);
+                setPullOnOpenState(next);
+              }}
+              className={`inline-flex min-h-11 items-center rounded-full px-3 text-sm ${pullOnOpen ? "bg-accent text-ink" : "border border-line text-muted"}`}
+            >
+              Pull when opening HQ: {pullOnOpen ? "On" : "Off"}
+            </button>
+          </div>
         </>
       )}
 
