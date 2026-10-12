@@ -30,6 +30,7 @@ type OpenCtoState = {
   hireCustom: (name: string, role: string, focus: string) => Promise<void>;
   fire: (employeeId: string) => Promise<void>;
   switchDesk: (id: string) => void;
+  renameDesk: (id: string, name: string) => void;
   advance: () => void;
   finishPlayback: () => void;
   setPlaying: (playing: boolean) => void;
@@ -284,6 +285,35 @@ export const useOpenCto = create<OpenCtoState>()(
           playing: false,
           error: null,
         });
+      },
+      renameDesk(id, name) {
+        const nextName = name.trim().slice(0, 64);
+        if (!nextName) return;
+        const current = get();
+        const desks = current.desks.map((desk) => {
+          if (desk.id !== id) return desk;
+          return {
+            ...desk,
+            snapshot: {
+              ...desk.snapshot,
+              business: { ...desk.snapshot.business, name: nextName },
+              seed: { ...desk.snapshot.seed, name: nextName },
+            },
+          };
+        });
+        const active = desks.find((desk) => desk.id === current.activeId);
+        if (current.activeId === id && current.snapshot) {
+          commit(set, get, {
+            desks,
+            snapshot: {
+              ...current.snapshot,
+              business: { ...current.snapshot.business, name: nextName },
+              seed: { ...current.snapshot.seed, name: nextName },
+            },
+          });
+          return;
+        }
+        set({ desks, snapshot: active?.snapshot ?? current.snapshot });
       },
       advance() {
         const len = get().snapshot?.log.length ?? 0;
