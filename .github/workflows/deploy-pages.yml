@@ -25,16 +25,17 @@ jobs:
         run: |
           set -e
           # Always restore the known-good full logic.rs for WASM builds.
-          # The large source file is restored here so the site builds without
-          # requiring a manual local git step from the project owner.
           GOOD="https://raw.githubusercontent.com/Perchemop/OpenCTO/4bf6e278449caab748f14dd1d8572ffec5650afd/engine/src/logic.rs"
           echo "Restoring full engine/src/logic.rs from known-good commit 4bf6e278"
           curl -fsSL "$GOOD" -o engine/src/logic.rs
-          # Drop any incomplete include stubs from partial restores
           rm -f engine/src/logic_p*.inc
           wc -c engine/src/logic.rs
-          head -3 engine/src/logic.rs
           test "$(wc -c < engine/src/logic.rs)" -gt 50000
+          # Brief-matching improvements (weather/tracking niches, quote the brief, soft team override)
+          python3 engine/scripts/patch_brief_matching.py engine/src/logic.rs
+          grep -q 'id: "weather"' engine/src/logic.rs
+          grep -q 'You asked:' engine/src/logic.rs
+          echo "logic.rs ready ($(wc -c < engine/src/logic.rs) bytes)"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
