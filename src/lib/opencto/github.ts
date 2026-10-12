@@ -12,6 +12,7 @@ const LS_TOKEN = "opencto.github.token";
 const LS_USER = "opencto.github.user";
 const LS_GIST = "opencto.github.gist";
 const LS_CLIENT = "opencto.github.clientId";
+const LS_AUTO = "opencto.github.autoPush";
 const GIST_FILENAME = "opencto-desks.json";
 
 export type GitHubUser = { login: string; name?: string | null; avatar_url?: string };
@@ -50,6 +51,23 @@ export function setClientId(id: string) {
     const v = id.trim();
     if (v) localStorage.setItem(LS_CLIENT, v);
     else localStorage.removeItem(LS_CLIENT);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getAutoPush(): boolean {
+  try {
+    return localStorage.getItem(LS_AUTO) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setAutoPush(on: boolean) {
+  try {
+    if (on) localStorage.setItem(LS_AUTO, "1");
+    else localStorage.removeItem(LS_AUTO);
   } catch {
     /* ignore */
   }
@@ -217,7 +235,6 @@ function parseGistContent(raw: string): GistPayload | null {
 }
 
 async function findExistingGist(token: string): Promise<string | null> {
-  // Search first few pages of user gists for our filename
   for (let page = 1; page <= 3; page++) {
     const res = await gh<
       { id: string; files: Record<string, { filename?: string }> }[]
@@ -256,7 +273,6 @@ export async function pushDesksToGist(
       }),
     });
     if (!res.ok) {
-      // Gist may have been deleted
       if (res.error.includes("404") || res.error.includes("Not Found")) {
         gistId = null;
       } else {
@@ -287,7 +303,7 @@ export async function pullDesksFromGist(
   session = loadSession(),
 ): Promise<{ ok: true; payload: GistPayload } | { ok: false; error: string }> {
   if (!session) return { ok: false, error: "Connect GitHub first" };
-  let gistId = session.gistId || (await findExistingGist(session.token));
+  const gistId = session.gistId || (await findExistingGist(session.token));
   if (!gistId) return { ok: false, error: "No OpenCTO backup gist found yet — push first" };
 
   const res = await gh<{
@@ -301,4 +317,10 @@ export async function pullDesksFromGist(
   if (!payload) return { ok: false, error: "Backup file is not a valid OpenCTO export" };
   saveSession({ ...session, gistId: res.data.id });
   return { ok: true, payload };
+}
+
+/** Fire-and-forget push when auto-push is on and a session exists. */
+export function maybeAutoPush(desks: DeskRecord[], activeId: string | null) {
+  if (!getAutoPush() || !loadSession()) return;
+  void pushDesksToGist(desks, activeId);
 }
