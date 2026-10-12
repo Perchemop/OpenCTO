@@ -24,14 +24,14 @@ function Guide() {
           not affiliated with cto.new or Engine Labs.
         </p>
         <p className="mt-3 text-base leading-relaxed text-muted">
-          There is no account and no API key. The desk runs a Rust engine as WebAssembly in this browser.
-          Your businesses are stored only on this device. Download a zip when you want a copy.
+          The desk runs a Rust engine as WebAssembly in this browser. By default there is no account and no API
+          key — businesses live in local storage. Optionally connect GitHub to back up desks to a private gist.
         </p>
 
         <h2 className="mt-10 font-serif text-3xl">How to start</h2>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted">
           <li>Open the home page and type what you want built — or tap Surprise me.</li>
-          <li>Pick a desk type and a planning profile (styles only; nothing is called over the network).</li>
+          <li>Pick a desk type and a planning profile (styles only; the planner does not call model vendors).</li>
           <li>Start the team. Watch the plan, tasks, and site preview fill in.</li>
           <li>Chat with the lead, hire or fire, approve or reject when the gate appears.</li>
           <li>Download the workspace zip from Headquarters if you want the files offline.</li>
@@ -39,66 +39,21 @@ function Guide() {
 
         <h2 className="mt-10 font-serif text-3xl">On your phone</h2>
         <p className="mt-3 text-sm leading-relaxed text-muted">
-          Open <a className="text-fg underline decoration-line underline-offset-2" href="https://perchemop.github.io/OpenCTO/">perchemop.github.io/OpenCTO</a> in Safari or Chrome.
-          Use <strong className="font-medium text-fg">Add to Home Screen</strong> so the desk opens full-screen like an app.
-          Work stays in that browser profile — same local storage, still no account.
+          Open{" "}
+          <a
+            className="text-fg underline decoration-line underline-offset-2"
+            href="https://perchemop.github.io/OpenCTO/"
+          >
+            perchemop.github.io/OpenCTO
+          </a>{" "}
+          in Safari or Chrome. Use <strong className="font-medium text-fg">Add to Home Screen</strong> so the desk
+          opens full-screen like an app.
         </p>
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-relaxed text-muted">
           <li>iPhone / iPad: Share → Add to Home Screen</li>
           <li>Android Chrome: Menu → Install app or Add to Home screen</li>
         </ul>
 
-        <h2 className="mt-10 font-serif text-3xl">Several businesses</h2>
+        <h2 className="mt-10 font-serif text-3xl">GitHub sync (optional)</h2>
         <p className="mt-3 text-sm leading-relaxed text-muted">
-          Starting another brief keeps the previous desk. Switch from the menu under the name, or from the search
-          button in the header. Clearing a desk in settings removes only that one. Everything stays in this
-          browser until you clear site data.
-        </p>
-
-        <h2 className="mt-10 font-serif text-3xl">What a run does</h2>
-        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted">
-          <li>Reads the brief and picks a kind of work: site, product change, bugfix, marketing, or research.</li>
-          <li>Staffs a fixed desk. Names do not change between runs.</li>
-          <li>Writes a plan, tasks, and files, then plays the work log so you can watch the kanban move.</li>
-          <li>Stops at an approval. Agreeing marks the draft published on this machine. Nothing is pushed.</li>
-        </ol>
-
-        <h2 className="mt-10 font-serif text-3xl">Model profiles</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          Local, alloy, Qwen, Devstral, DeepSeek, and Kimi are planning styles inside the crate. They do not
-          call those labs. Alloy means two passes in one thread: a structured draft, then a looser rewrite,
-          merged. When you self-host the CLI, you can point those profiles at open weights yourself. The
-          browser build never needs a key.
-        </p>
-
-        <h2 className="mt-10 font-serif text-3xl">The CLI</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          From a checkout of this project, the engine lives in <code className="text-fg">engine/</code>.
-        </p>
-        <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface p-4 text-xs leading-relaxed text-fg">{`cargo run --manifest-path engine/Cargo.toml -- catalog
-cargo run --manifest-path engine/Cargo.toml -- run <<'JSON'
-{"op":"launch","brief":"A booking site for a Lisbon ceramic studio called Barro","team":"website","model":"alloy"}
-JSON`}</pre>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          Operations: catalog, launch, chat, approve, reject, pause, resume, hire, fire. Chat, approve, and
-          the rest take the previous snapshot back as <code className="text-fg">state</code>.
-        </p>
-
-        <h2 className="mt-10 font-serif text-3xl">Rebuild the browser engine</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          GitHub Actions rebuilds the WASM on every Pages deploy. To do it yourself:
-        </p>
-        <pre className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface p-4 text-xs leading-relaxed text-fg">{`rustup target add wasm32-unknown-unknown
-cargo build --manifest-path engine/Cargo.toml --target wasm32-unknown-unknown --release --lib
-cp engine/target/wasm32-unknown-unknown/release/opencto.wasm public/engine/opencto.wasm`}</pre>
-
-        <h2 className="mt-10 font-serif text-3xl">What this is not</h2>
-        <p className="mt-3 text-sm leading-relaxed text-muted">
-          It will not open pull requests, send email, browse the web, or spend a model budget. Those are the
-          hosted product’s job. OpenCTO is the part you can read, fork, and run for nothing: the desk, the
-          gates, and a planner honest about being local.
-        </p>
-      </article>
-    </div>
-  );
-}
+          In Headquarters → Settings you can connect GitHub with{
